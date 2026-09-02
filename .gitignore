@@ -48,6 +48,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .venv/
+.vscode/
 
 # ---------------------------------------------------------------------------
 # Runtime scratch. *.log is ignored, but the hardware scene set tracks its
