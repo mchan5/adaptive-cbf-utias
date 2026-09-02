@@ -42,3 +42,21 @@ list silently, with no error, just an empty `ros2 topic list`.
   </Domain>
 </CycloneDDS>
 ```
+
+## Two paths: LAN and Tailscale
+
+`cyclonedds_<device>.xml` is whichever path is active; `*.lan.xml` keeps the
+LAN variant. Swap with `cp cyclonedds_desktop.lan.xml cyclonedds_desktop.xml`.
+
+The LAN path needs the router to permit client-to-client traffic. On the ASUS
+at 192.168.50.1 that means **Wireless -> Professional -> Set AP Isolated: No**
+and, if either machine is on a guest SSID (`hs293go_5G-2` and friends),
+**Guest Network -> Access Intranet: Enable**. Symptom when it is not: the
+gateway pings fine, the other machine does not, and its ARP entry sits `STALE`
+with a known MAC — broadcast ARP leaks through isolation, unicast does not.
+
+The Tailscale path sidesteps the router entirely and is the right default in
+the field. It pins `eth2` (desktop; the Windows adapter mirrored into WSL) and
+`tailscale0` (Jetson), and clamps `MaxMessageSize`/`FragmentSize` under the
+1280-byte WireGuard MTU so no RTPS message relies on IP fragmentation. Both
+machines must be on the **same tailnet** — check with `tailscale status`.

@@ -3,6 +3,7 @@
 
 import numpy as np
 import rclpy
+from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
 
@@ -107,6 +108,7 @@ class LidarObstaclePublisherNode(Node):
         self.declare_parameter('max_obstacle_radius_m', 0.5)
         self.declare_parameter('max_obstacles', 20)
         self.declare_parameter('tracking_max_jump_m', 0.5)
+        self.declare_parameter('marker_lifetime_s', 0.3)
 
         self.declare_parameter('sensor_offset_xyz', [0.0, 0.0, 0.0])
         self.declare_parameter('sensor_offset_rpy_deg', [0.0, 0.0, 0.0])
@@ -210,6 +212,8 @@ class LidarObstaclePublisherNode(Node):
 
     def _build_markers(self, tracks):
         min_diameter = self.get_parameter('min_obstacle_diameter_m').value
+        lifetime = Duration(
+            seconds=max(0.0, self.get_parameter('marker_lifetime_s').value)).to_msg()
         markers = []
         for obstacle_id, (centroid, radius) in tracks.items():
             diameter = max(2.0 * radius, min_diameter)
@@ -218,6 +222,7 @@ class LidarObstaclePublisherNode(Node):
             m.id = obstacle_id
             m.type = Marker.SPHERE
             m.action = Marker.ADD
+            m.lifetime = lifetime
             m.pose.position.x = float(centroid[0])
             m.pose.position.y = float(centroid[1])
             m.pose.position.z = float(centroid[2])

@@ -42,6 +42,7 @@ def _setup(context, *args, **kwargs):
     pointcloud_topic = LaunchConfiguration("pointcloud_topic").perform(context)
     z_min = LaunchConfiguration("z_min").perform(context)
     z_max = LaunchConfiguration("z_max").perform(context)
+    marker_lifetime = LaunchConfiguration("marker_lifetime").perform(context)
     run_driver = LaunchConfiguration("driver").perform(context).lower() in _TRUE
     run_fake_odom = LaunchConfiguration("fake_odom").perform(context).lower() in _TRUE
 
@@ -84,6 +85,8 @@ def _setup(context, *args, **kwargs):
             # single_vehicle_cbf_rate_arc/config/obstacle_sensing_envelope.yaml.
             "z_min_m": float(z_min),
             "z_max_m": float(z_max),
+            # Stale spheres self-expire in RViz instead of piling up (node only emits ADD).
+            "marker_lifetime_s": float(marker_lifetime),
         }],
     ))
 
@@ -137,5 +140,8 @@ def generate_launch_description():
         DeclareLaunchArgument("rviz", default_value="true"),
         DeclareLaunchArgument("z_min", default_value="-2.0"),
         DeclareLaunchArgument("z_max", default_value="3.0"),
+        DeclareLaunchArgument(
+            "marker_lifetime", default_value="0.3",
+            description="Seconds each sphere lives in RViz before it self-expires; 0 = forever"),
         OpaqueFunction(function=_setup),
     ])
