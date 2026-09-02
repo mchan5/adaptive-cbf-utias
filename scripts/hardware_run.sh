@@ -14,6 +14,10 @@ fi
 
 # Campaign layout (override CAMPAIGN_DIR before sourcing to name a run).
 export SCENES="${SCENES:-$ARC_ROOT/research/penn_gat/results/hardware_scenes_final_20260831/scenes}"
+# arc_experiment_gui reads ARC_SCENE_DIR, not SCENES. The packaged default (hw_identical_20260831)
+# is now a copy of this same frozen 0.12 m set, so the two agree -- this keeps the GUI and every
+# launch-file `obstacle_file` reading one directory, and still redirects both if SCENES is set.
+export ARC_SCENE_DIR="${ARC_SCENE_DIR:-$SCENES}"
 export CAMPAIGN_DIR="${CAMPAIGN_DIR:-$ARC_ROOT/research/penn_gat/results/hardware_campaign_$(date +%Y%m%d)}"
 export HW_YAML="$ARC_ROOT/src/arc/single_vehicle_cbf_rate_arc/config/params_single_vehicle_cbf_rate_arc_hardware.yaml"
 mkdir -p "$CAMPAIGN_DIR/bags" "$CAMPAIGN_DIR/logs"

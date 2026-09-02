@@ -1,0 +1,152 @@
+{
+  "seed": 20260831,
+  "source": "research/penn_gat/results/hardware_scenes_final_20260831/scenes",
+  "start": [
+    0.0,
+    0.5,
+    1.5
+  ],
+  "goal": [
+    0.0,
+    5.5,
+    1.5
+  ],
+  "obstacle_diameter": 0.12,
+  "obstacle_z": 1.5,
+  "obs_safety_margin": 0.5,
+  "x_range": [
+    -1.8292,
+    1.9322
+  ],
+  "y_range": [
+    1.3021,
+    4.6556
+  ],
+  "pass_gap": 1.15,
+  "reroute_gap": [
+    0.87,
+    1.0
+  ],
+  "scenes": [
+    {
+      "scene": 0,
+      "class": "passable",
+      "n_obstacles": 2,
+      "path": "scene_00.json"
+    },
+    {
+      "scene": 1,
+      "class": "passable",
+      "n_obstacles": 2,
+      "path": "scene_01.json"
+    },
+    {
+      "scene": 2,
+      "class": "passable",
+      "n_obstacles": 2,
+      "path": "scene_02.json"
+    },
+    {
+      "scene": 3,
+      "class": "passable",
+      "n_obstacles": 2,
+      "path": "scene_03.json"
+    },
+    {
+      "scene": 4,
+      "class": "passable",
+      "n_obstacles": 2,
+      "path": "scene_04.json"
+    },
+    {
+      "scene": 5,
+      "class": "passable",
+      "n_obstacles": 3,
+      "path": "scene_05.json"
+    },
+    {
+      "scene": 6,
+      "class": "passable",
+      "n_obstacles": 3,
+      "path": "scene_06.json"
+    },
+    {
+      "scene": 7,
+      "class": "passable",
+      "n_obstacles": 3,
+      "path": "scene_07.json"
+    },
+    {
+      "scene": 8,
+      "class": "passable",
+      "n_obstacles": 4,
+      "path": "scene_08.json"
+    },
+    {
+      "scene": 9,
+      "class": "passable",
+      "n_obstacles": 4,
+      "path": "scene_09.json"
+    },
+    {
+      "scene": 10,
+      "class": "passable",
+      "n_obstacles": 5,
+      "path": "scene_10.json"
+    },
+    {
+      "scene": 11,
+      "class": "passable",
+      "n_obstacles": 5,
+      "path": "scene_11.json"
+    },
+    {
+      "scene": 12,
+      "class": "reroute",
+      "n_obstacles": 3,
+      "path": "scene_12.json"
+    },
+    {
+      "scene": 13,
+      "class": "reroute",
+      "n_obstacles": 3,
+      "path": "scene_13.json"
+    },
+    {
+      "scene": 14,
+      "class": "reroute",
+      "n_obstacles": 3,
+      "path": "scene_14.json"
+    },
+    {
+      "scene": 15,
+      "class": "reroute",
+      "n_obstacles": 4,
+      "path": "scene_15.json"
+    },
+    {
+      "scene": 16,
+      "class": "reroute",
+      "n_obstacles": 4,
+      "path": "scene_16.json"
+    },
+    {
+      "scene": 17,
+      "class": "reroute",
+      "n_obstacles": 4,
+      "path": "scene_17.json"
+    },
+    {
+      "scene": 18,
+      "class": "reroute",
+      "n_obstacles": 5,
+      "path": "scene_18.json"
+    },
+    {
+      "scene": 19,
+      "class": "reroute",
+      "n_obstacles": 6,
+      "path": "scene_19.json"
+    }
+  ]
+}

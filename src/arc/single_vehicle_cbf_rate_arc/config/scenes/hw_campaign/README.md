@@ -1,4 +1,12 @@
-# Frozen campaign scene set — `hw_campaign`
+# RETIRED scene set — `hw_campaign`
+
+> **Superseded 2026-09-02 by `../hw_identical_20260831`**, whose obstacles are
+> all identical and sized to the real 0.12 m floor cylinders. This set's
+> mixed 0.8–1.6 m diameter spheres match no physical obstacle, so its scenes
+> cannot be flown on hardware and its cylinder/sphere barrier branches
+> disagree. Kept only as provenance for trials recorded against it before
+> that date — do not start new runs here.
+
 
 The 20 obstacle scenes for the adaptive-vs-fixed-gamma campaign
 (`EXPERIMENT_GUI_PLAN_20260829.md` §4.5,

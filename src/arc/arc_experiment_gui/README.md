@@ -48,12 +48,19 @@ SITL (gz_x500 publishes no `battery_status`).
 - `uav_prefix` ROS param (default `uav_0`) — namespace for all topics/services.
 - `ARC_CBF_REPO` env — repo path for the config-freeze indicator
   (default `$ARC_ROOT/src/arc`).
+- Packaged scene set —
+  `single_vehicle_cbf_rate_arc/config/scenes/hw_identical_20260831`: 20 frozen
+  scenes of **identical** 0.12 m obstacles at `z = 1.5` in a
+  `(0, 0.5, 1.5) → (0, 5.5, 1.5)` corridor, matching the real floor cylinders.
+  Because they are identical and the barrier is evaluated at flight altitude,
+  a scene is the same geometry under `cbf_cylinder_barrier` either way. The
+  retired mixed-radius `hw_campaign` set is kept only as provenance.
 - `ARC_SCENE_DIR` env — overrides the packaged scene set. Point it at a
   frozen results dir (e.g.
-  `$ARC_ROOT/research/penn_gat/results/hardware_scenes_final_20260831/scenes`) to
-  fly that set in either regime without re-copying files into the package —
-  this is what makes a SITL rehearsal and a hardware run fly the *same*
-  scenes.
+  `$ARC_ROOT/research/penn_gat/results/hardware_scenes_final_20260831/scenes`,
+  the source the packaged set was copied from) to fly that set in either
+  regime without re-copying files into the package — this is what makes a
+  SITL rehearsal and a hardware run fly the *same* scenes.
 - `ARC_TRIAL_RECORD_CMD` env (optional, Phase 5) — command template with
   `{out}` run at each trial's bag-start and SIGINT'd at bag-stop, e.g.
   `ffmpeg -y -f x11grab -i :0 {out}/screen.mp4`.

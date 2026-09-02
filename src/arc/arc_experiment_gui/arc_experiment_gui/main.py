@@ -61,6 +61,12 @@ def _slug(text):
     return re.sub(r'[^A-Za-z0-9._-]+', '-', text.strip()).strip('-') or 'unlabelled'
 
 
+# Packaged scene set: identical 0.12 m obstacles at z = 1.5, so a scene is the same geometry
+# under either barrier branch (sphere or vertical cylinder). Supersedes the mixed-radius
+# `hw_campaign` set, which is kept only as provenance for pre-2026-08-31 trials.
+SCENE_SET = 'hw_identical_20260831'
+
+
 def _scene_dir():
     # ARC_SCENE_DIR overrides the packaged set -- point it at a frozen results dir (e.g.
     # .../hardware_scenes_final_20260831/scenes) to fly that scene set without re-copying files …
@@ -70,10 +76,10 @@ def _scene_dir():
     try:
         return os.path.join(
             get_package_share_directory('single_vehicle_cbf_rate_arc'),
-            'config', 'scenes', 'hw_campaign')
+            'config', 'scenes', SCENE_SET)
     except Exception:  # noqa: BLE001
         return os.path.join(_REPO, 'single_vehicle_cbf_rate_arc',
-                            'config', 'scenes', 'hw_campaign')
+                            'config', 'scenes', SCENE_SET)
 
 
 def _yaw_from_quat(q):
