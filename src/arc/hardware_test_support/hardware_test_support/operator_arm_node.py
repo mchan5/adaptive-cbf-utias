@@ -20,9 +20,12 @@ class OperatorArmNode(Node):
             depth=1)
 
         self._vehicle_command_pub = self.create_publisher(VehicleCommand, 'fmu/in/vehicle_command', cmd_qos)
-        # Matches single_vehicle_cbf_rate_client.cpp's vehicle_status_sub_ topic -- verify against
-        # the real Pixhawk's firmware build before flying; PX4 v1.15.4's SITL checkout publishes …
-        self.create_subscription(VehicleStatus, 'fmu/out/vehicle_status', self._on_vehicle_status, cmd_qos)
+        # Must match single_vehicle_cbf_rate_client.cpp's vehicle_status_topic param -- the
+        # versioned suffix differs between SITL and a real board's firmware build; verify with
+        # config/px4/verify_vehicle_status_topic.sh before flying. Default matches SITL.
+        vehicle_status_topic = self.declare_parameter(
+            'vehicle_status_topic', 'fmu/out/vehicle_status').value
+        self.create_subscription(VehicleStatus, vehicle_status_topic, self._on_vehicle_status, cmd_qos)
         self.create_subscription(Bool, 'operator/arm_confirm', self._on_arm_confirm, 10)
 
         self._armed = False

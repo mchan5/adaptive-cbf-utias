@@ -45,5 +45,23 @@ colcon test --packages-select lidar_obstacle_publisher
 pytest test/test_bag_replay.py -q
 ```
 
-A red test here means the transform, clustering, or tracker regressed
-against real data -- check the mount offset first.
+A red test here means the transform, occupancy-grid clustering, or the
+hysteresis tracker regressed against real data -- check the mount offset first.
+
+## Accuracy report (not pass/fail)
+
+Same replay, but prints detection rate / centroid error / ID stability /
+spurious-marker rate instead of asserting -- the number to quote in a writeup:
+
+```
+python3 tools/eval_detection_accuracy.py            # uses this fixture
+python3 tools/eval_detection_accuracy.py --tol 0.20 --json /tmp/acc.json
+```
+
+## Tuning knobs in `params:`
+
+The occupancy grid (`grid_*`, `occupancy_*`, `min_cluster_cells`) and the
+hysteresis tracker (`track_min_hits`, `track_max_misses`, `track_ema_alpha`)
+default to the node's values. `grid_origin_xy` / `grid_size_xy` /
+`grid_resolution_m` are fixed at node construction; everything else retunes
+live with `ros2 param set`.

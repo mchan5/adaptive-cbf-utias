@@ -97,10 +97,13 @@ class TelemetryNode(Node, QObject):
             Odometry, f'{p}/state_estimator/local_position/odom', self._on_odom, _best_effort(10))
         self.create_subscription(
             MarkerArray, '/arc/obstacles', self._on_obstacles, _obstacles_qos())
-        # Unversioned -- PX4 v1.15.4's SITL checkout has zero publishers on both vehicle_status_v1
-        # and _v4 (see px4_config/README.md's "vehicle_status_v1 vs v4" section); this is why …
+        # Versioned suffix differs between SITL (unversioned, the default) and a real board's
+        # firmware build -- pass -p vehicle_status_topic:=fmu/out/vehicle_status_v1 (or whatever
+        # config/px4/verify_vehicle_status_topic.sh reports live) when pointing this at hardware.
+        self._vehicle_status_topic = self.declare_parameter(
+            'vehicle_status_topic', 'fmu/out/vehicle_status').value
         self.create_subscription(
-            VehicleStatus, f'{p}/fmu/out/vehicle_status', self._on_status, _px4_out(10))
+            VehicleStatus, f'{p}/{self._vehicle_status_topic}', self._on_status, _px4_out(10))
         self.create_subscription(
             BatteryStatus, f'{p}/fmu/out/battery_status', self._on_battery, _best_effort(5))
 

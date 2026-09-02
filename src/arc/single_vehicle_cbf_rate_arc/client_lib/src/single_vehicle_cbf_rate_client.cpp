@@ -162,9 +162,13 @@ RateAutopilotClient::RateAutopilotClient(const rclcpp::NodeOptions& options)
       "/arc/obstacles", qos_sub,
       [this](const visualization_msgs::msg::MarkerArray::ConstSharedPtr& msg) { obstaclesCallback(msg); });
   // The versioned suffix this checkout's uxrce_dds_client publishes under has drifted before
-  // (previously "_v1", not "_v4") and drifted again -- as of 2026-09-01 this PX4-Autopilot …
+  // (previously "_v1", not "_v4") and differs between SITL and a real board's firmware build --
+  // a parameter, not a hardcoded string, so each launch file can pin the value that's actually
+  // live (config/px4/verify_vehicle_status_topic.sh confirms which). Default matches SITL.
+  const std::string vehicle_status_topic =
+      this->declare_parameter<std::string>("vehicle_status_topic", "fmu/out/vehicle_status");
   vehicle_status_sub_ = this->create_subscription<px4_msgs::msg::VehicleStatus>(
-      "fmu/out/vehicle_status", qos_px4_out,
+      vehicle_status_topic, qos_px4_out,
       [this](const px4_msgs::msg::VehicleStatus::ConstSharedPtr& msg) { vehicleStatusCallback(msg); });
 
   // Runtime goal-waypoint command. Relative name -- resolves under this node's namespace, i.e.

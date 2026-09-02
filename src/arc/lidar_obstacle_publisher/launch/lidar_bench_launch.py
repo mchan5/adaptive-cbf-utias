@@ -21,6 +21,8 @@ mount offset, and the production sensing envelope.
     ros2 launch lidar_obstacle_publisher lidar_bench_launch.py
     ros2 launch lidar_obstacle_publisher lidar_bench_launch.py driver:=false   # driver already up
     ros2 launch lidar_obstacle_publisher lidar_bench_launch.py rviz:=false fake_odom:=false
+    ros2 launch lidar_obstacle_publisher lidar_bench_launch.py \
+        self_filter:=0.35,0.35,0.20 roi:=-1.5,-0.5,1.5,6.5   # cull the airframe + clip to arena
 """
 
 import os
@@ -43,6 +45,9 @@ def _setup(context, *args, **kwargs):
     z_min = LaunchConfiguration("z_min").perform(context)
     z_max = LaunchConfiguration("z_max").perform(context)
     marker_lifetime = LaunchConfiguration("marker_lifetime").perform(context)
+    marker_shape = LaunchConfiguration("marker_shape").perform(context).strip()
+    self_filter = LaunchConfiguration("self_filter").perform(context).strip()
+    roi = LaunchConfiguration("roi").perform(context).strip()
     run_driver = LaunchConfiguration("driver").perform(context).lower() in _TRUE
     run_fake_odom = LaunchConfiguration("fake_odom").perform(context).lower() in _TRUE
 
@@ -71,23 +76,34 @@ def _setup(context, *args, **kwargs):
             }],
         ))
 
+    node_params = {
+        "pointcloud_topic": pointcloud_topic,
+        "frame_id": "map",
+        # Bench default: open the world-frame height band right up. Production
+        # values (0.1 .. 2.5) live in
+        # single_vehicle_cbf_rate_arc/config/obstacle_sensing_envelope.yaml.
+        "z_min_m": float(z_min),
+        "z_max_m": float(z_max),
+        # Stale markers self-expire in RViz instead of piling up (node only emits ADD).
+        "marker_lifetime_s": float(marker_lifetime),
+        "marker_shape": marker_shape,
+    }
+    if self_filter:
+        hx, hy, hz = (float(v) for v in self_filter.split(","))
+        node_params["self_filter_half_extents_xyz"] = [hx, hy, hz]
+    if roi:
+        xmin, ymin, xmax, ymax = (float(v) for v in roi.split(","))
+        node_params["roi_enabled"] = True
+        node_params["roi_xy_min"] = [xmin, ymin]
+        node_params["roi_xy_max"] = [xmax, ymax]
+
     actions.append(Node(
         package="lidar_obstacle_publisher",
         executable="lidar_obstacle_publisher",
         name="lidar_obstacle_publisher_node",
         namespace=uav_prefix,
         output="screen",
-        parameters=[{
-            "pointcloud_topic": pointcloud_topic,
-            "frame_id": "map",
-            # Bench default: open the world-frame height band right up. Production
-            # values (0.1 .. 2.5) live in
-            # single_vehicle_cbf_rate_arc/config/obstacle_sensing_envelope.yaml.
-            "z_min_m": float(z_min),
-            "z_max_m": float(z_max),
-            # Stale spheres self-expire in RViz instead of piling up (node only emits ADD).
-            "marker_lifetime_s": float(marker_lifetime),
-        }],
+        parameters=[node_params],
     ))
 
     actions.append(Node(
@@ -142,6 +158,17 @@ def generate_launch_description():
         DeclareLaunchArgument("z_max", default_value="3.0"),
         DeclareLaunchArgument(
             "marker_lifetime", default_value="0.3",
-            description="Seconds each sphere lives in RViz before it self-expires; 0 = forever"),
+            description="Seconds each marker lives in RViz before it self-expires; 0 = forever"),
+        DeclareLaunchArgument(
+            "marker_shape", default_value="sphere",
+            description="'sphere' or 'cylinder' -- match the CBF obstacle model in use"),
+        DeclareLaunchArgument(
+            "self_filter", default_value="",
+            description="Body-frame self-filter half-extents 'hx,hy,hz' in metres; "
+                        "'' disables. Drops points inside the box (the airframe)."),
+        DeclareLaunchArgument(
+            "roi", default_value="",
+            description="World-frame arena ROI 'xmin,ymin,xmax,ymax' in metres; "
+                        "'' disables. Drops points outside the box before clustering."),
         OpaqueFunction(function=_setup),
     ])

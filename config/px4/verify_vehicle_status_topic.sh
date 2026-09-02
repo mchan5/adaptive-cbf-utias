@@ -7,7 +7,9 @@ set -euo pipefail
 check_topic() {
   local topic="$1"
   local info
-  info=$(ros2 topic info -v "$topic" 2>/dev/null || true)
+  # --no-daemon: the ros2 CLI daemon can hang cold-starting under unicast discovery
+  # (wireless-link config) -- see wireless-cross-machine-dds-link-diagnosis-ladder.
+  info=$(ros2 topic info -v --no-daemon "$topic" 2>/dev/null || true)
   local pub_count
   pub_count=$(echo "$info" | grep -A1 "Publisher count:" | head -1 | grep -oE '[0-9]+' || echo "0")
   echo "$pub_count"

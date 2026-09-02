@@ -141,7 +141,10 @@ class BagRecorder(_Proc):
         '/{p}/cbf/diagnostics',
         '/{p}/state_estimator/local_position/odom',
         '/arc/obstacles',
+        # Both suffixes: SITL and real-board firmware publish under different ones (see
+        # config/px4/verify_vehicle_status_topic.sh); whichever isn't live just records nothing.
         '/{p}/fmu/out/vehicle_status',
+        '/{p}/fmu/out/vehicle_status_v1',
         '/{p}/fmu/in/vehicle_rates_setpoint',
         '/{p}/goal_waypoint',
         '/{p}/fmu/out/battery_status',

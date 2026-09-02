@@ -22,14 +22,29 @@ params:
   sensor_offset_rpy_deg: [0.0, 0.0, 0.0]
   min_range_m: 0.2
   max_range_m: 8.0
+  # A bench sensor sits low: set the band to whatever actually contains the
+  # measured obstacle during the take (production is 0.1 .. 2.5).
   z_min_m: 0.1
   z_max_m: 2.5
-  voxel_size_m: 0.15
-  min_cluster_points: 8
   min_obstacle_diameter_m: 0.2
   max_obstacle_radius_m: 0.5
   max_obstacles: 20
+  # Hysteresis tracker. min_hits delays first publish by N frames (birth
+  # debounce); max_misses keeps a lost track alive N frames (coasting).
   tracking_max_jump_m: 0.5
+  track_min_hits: 3
+  track_max_misses: 5
+  track_ema_alpha: 0.5
+  # Temporal 2D occupancy grid (clustering). grid_* size the arrays and are
+  # fixed at construction; the rest retune live. Defaults match the node.
+  grid_origin_xy: [-8.0, -8.0]
+  grid_size_xy: [16.0, 16.0]
+  grid_resolution_m: 0.1
+  occupancy_half_life_s: 0.4
+  occupancy_hit_increment: 0.35
+  occupancy_threshold: 0.5
+  occupancy_reset_epsilon: 0.05
+  min_cluster_cells: 4
 
 # Physical obstacles present during the recording, measured in world/ENU.
 obstacles:

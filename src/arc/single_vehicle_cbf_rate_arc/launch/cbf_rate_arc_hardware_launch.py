@@ -81,6 +81,7 @@ def _launch_arm_node(context, *args, **kwargs):
             executable="operator_arm_node",
             name="operator_arm_node",
             namespace=uav_prefix,
+            parameters=[{"vehicle_status_topic": LaunchConfiguration("vehicle_status_topic")}],
         )]
 
     if arm_mode != "auto":
@@ -119,6 +120,7 @@ def generate_launch_description():
         launch_arguments={
             "uav_prefix": uav_prefix,
             "cbf_cylinder_barrier": LaunchConfiguration("cbf_cylinder_barrier"),
+            "vehicle_status_topic": LaunchConfiguration("vehicle_status_topic"),
         }.items(),
     )
 
@@ -232,6 +234,14 @@ def generate_launch_description():
                         "flown -- SITL-rehearse before setting true on a real "
                         "vehicle, and only with genuinely floor-to-ceiling "
                         "obstacles.",
+        ),
+        DeclareLaunchArgument(
+            "vehicle_status_topic",
+            default_value=os.environ.get("ARC_VEHICLE_STATUS_TOPIC", "fmu/out/vehicle_status"),
+            description="Versioned suffix differs between SITL and a real board's firmware -- "
+                        "confirm with config/px4/verify_vehicle_status_topic.sh before flying. "
+                        "Defaults from $ARC_VEHICLE_STATUS_TOPIC if set, else unversioned (SITL). "
+                        "Passed through to both the CBF node and operator_arm_node.",
         ),
 
         cbf_rate_stack,

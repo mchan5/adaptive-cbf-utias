@@ -25,7 +25,8 @@ def _make_node(context, *args, **kwargs):
 
     autopilot_params = ros_parameters.get("/**/autopilot_sv_cbf_rate_node", {}).get("ros__parameters", {})
 
-    node_parameters = [autopilot_params, {"uav_prefix": uav_prefix}]
+    node_parameters = [autopilot_params, {"uav_prefix": uav_prefix},
+                       {"vehicle_status_topic": LaunchConfiguration("vehicle_status_topic")}]
 
     # Optional runtime override for the obstacle model, mirroring the sim launch.
     raw = LaunchConfiguration("cbf_cylinder_barrier").perform(context).strip().lower()
@@ -55,6 +56,13 @@ def generate_launch_description():
             default_value="",
             description="Override the obstacle model: '' keeps the YAML value, "
                         "'true' = vertical-cylinder barrier, 'false' = sphere barrier.",
+        ),
+        DeclareLaunchArgument(
+            "vehicle_status_topic",
+            default_value=os.environ.get("ARC_VEHICLE_STATUS_TOPIC", "fmu/out/vehicle_status"),
+            description="Versioned suffix differs between SITL and a real board's firmware -- "
+                        "confirm with config/px4/verify_vehicle_status_topic.sh before flying. "
+                        "Defaults from $ARC_VEHICLE_STATUS_TOPIC if set, else unversioned (SITL).",
         ),
         OpaqueFunction(function=_make_node),
     ])
