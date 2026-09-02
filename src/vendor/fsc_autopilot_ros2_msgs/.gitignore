@@ -1,0 +1,90 @@
+*~
+
+**/slprj/**
+**/x64/**
+*.mat
+**/v15/**
+**/eigen3/**
+*.autosave
+*.asv
+*.slxc
+**/.cache/**
+
+# Build Outputs
+build/**
+out/**
+build_release/**
+build_debug/**
+
+# ut results
+ut/results/*
+
+# Visual Studio 2015/2017 cache/options directory
+.vs/
+
+# VS Code files for those working on multiple tools
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Local History for Visual Studio Code
+.history/
+
+# Clangd cache
+.cache/
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out*
+*.app
+
+# cppcheck results
+cppcheck_results.*
+
+# ut results
+ut/report/**
+ut/coverage/**
+**.bin
+
+# allow all gtest files to be uploaded
+!google_test/**
+# ignore coverage report
+**/coverage_report/**
+*.info
+
+# python
+**/__pycache__/**
+
+# pybind
+**.egg-info/**

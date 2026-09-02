@@ -1,0 +1,4 @@
+mocap_emulator: # must much the node name in launch file
+  ros__parameters:
+    gz_model_list:
+      - "uav_0"

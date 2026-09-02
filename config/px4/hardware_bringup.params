@@ -1,0 +1,75 @@
+# Onboard parameters for Vehicle 1
+#
+# QGroundControl-loadable parameter file (Vehicle Setup > Parameters > Tools
+# > Load from file). See README.md in this directory for full rationale,
+# sourcing, and confidence level per parameter -- do not load this blind.
+#
+# Rule applied throughout this file: only binary disables (0/1) and
+# continuous float magnitudes (distances, timeouts, offsets) are included as
+# live, loadable lines. Every multi-option ENUM parameter (GF_ACTION,
+# GF_SOURCE, EKF2_HGT_REF, COM_LOW_BAT_ACT, NAV_RCL_ACT, COM_OBL_ACT,
+# COM_OBL_RC_ACT, kill switch mapping) is intentionally left OUT of the
+# loadable lines below and listed as a comment instead -- getting an enum
+# integer backwards (e.g. RTL vs flight-termination) is a categorically
+# worse mistake than a magnitude being untuned, and QGC's own parameter
+# dropdown shows you the real human-readable options for your exact
+# firmware build instead of a guessed integer.
+#
+# EVERY numeric value below is a placeholder or a generic starting point,
+# not a value derived from your actual vehicle/venue/battery. Read every
+# value back in QGC after loading and confirm it's what you intended.
+#
+# # Vehicle-Id Component-Id Name Value Type
+# --- External vision (mocap) fusion ---
+1	1	EKF2_EV_CTRL	15	6
+1	1	EKF2_EV_DELAY	30.0	9
+1	1	EKF2_EV_POS_X	0.0	9
+1	1	EKF2_EV_POS_Y	0.0	9
+1	1	EKF2_EV_POS_Z	0.0	9
+1	1	EKF2_GPS_CTRL	0	6
+1	1	EKF2_BARO_CTRL	0	6
+# EKF2_HGT_REF -- set to "Vision" via QGC's dropdown, enum integer not
+# confirmed here, do not guess it.
+#
+# --- Geofence (placeholder distances -- match your real test volume) ---
+1	1	GF_MAX_HOR_DIST	5.0	9
+1	1	GF_MAX_VER_DIST	3.0	9
+# GF_ACTION -- set to Return/RTL via QGC's dropdown (matches
+# geofence_monitor_node.py's own choice of RTL over a raw disarm).
+# GF_SOURCE -- verify via QGC that this is evaluating against the
+# vision-derived position, not an absent GPS position, before trusting it
+# indoors.
+#
+# --- Battery failsafe (generic starting points, NOT derived from your
+# actual battery's discharge curve -- these are fractions 0.0-1.0 per PX4
+# convention, verify that scale in QGC before trusting the loaded value) ---
+1	1	BAT_LOW_THR	0.30	9
+1	1	BAT_CRIT_THR	0.20	9
+1	1	BAT_EMERGEN_THR	0.10	9
+1	1	COM_ARM_BAT_MIN	0.30	9
+# COM_LOW_BAT_ACT -- set to Return-then-Land via QGC's dropdown.
+#
+# --- Offboard-loss failsafe (arguably more relevant here than plain RC
+# loss -- the likely real failure mode is the companion computer/CBF node
+# stalling, not the RC transmitter losing signal) ---
+1	1	COM_OF_LOSS_T	0.5	9
+# COM_OBL_RC_ACT -- action when offboard is lost WITH RC available: set to
+# a pilot-recoverable mode (e.g. Position/Altitude) via QGC's dropdown --
+# do NOT pick something that itself requires GPS if flying indoors.
+# COM_OBL_ACT -- action when offboard is lost with NO RC available either:
+# set toward Land via QGC's dropdown, not Return, if position validity
+# indoors (no GPS) is in question.
+#
+# --- RC loss / kill switch ---
+# NAV_RCL_ACT -- set via QGC's dropdown.
+# Kill switch -- assign via QGroundControl's Vehicle Setup > Flight Modes
+# UI (channel-to-function mapping), not a hand-written param line here.
+# This is the single most safety-critical item in this file; the UI flow
+# writes the correct underlying parameter for your firmware build, a
+# guessed param name/value here would not.
+#
+# --- Rate controller tuning ---
+# MC_ROLLRATE_P/I/D, MC_PITCHRATE_P/I/D, MC_YAWRATE_P/I/D and related gains
+# are deliberately NOT included anywhere in this file. Run PX4 autotune (or
+# manual tuning) in normal manual/acro flight on the real F450 first -- see
+# README.md.

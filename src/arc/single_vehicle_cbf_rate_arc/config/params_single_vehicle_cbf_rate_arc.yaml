@@ -1,0 +1,536 @@
+/**/autopilot_sv_cbf_rate_node:
+  ros__parameters:
+    waypoint_x: 0.0
+    waypoint_y: 5.5
+    waypoint_z: 1.5
+
+    vehicle_mass: 2.064  # actual Gazebo gz_x500 SITL model mass (base_link
+                         # 2.0kg + 4x rotor 0.016077kg) -- NOT the real F450
+                         # hardware value (1.6kg) this was mis-copied from.
+                         # See x500_base/model.sdf in PX4-Autopilot.
+    obs_d_min: 1.0
+    obs_safety_margin: 0.5
+
+    qp_thrust_min: 4.7
+    qp_thrust_floor_gain: 8.0
+    qp_tau_min: -50.0
+    qp_tau_max: 50.0
+    qp_omega_max: 6.0
+    qp_rho: 1.0
+    control_rate_hz: 100.0
+
+    qp_slack_weight: 10000.0  # NOT "1.0e4" -- PyYAML safe_load (used by the
+                              # launch files) parses an unsigned mantissa
+                              # exponent like 1.0e4 as a *string*, not a
+                              # float, so the double-typed ROS param was
+                              # being rejected/ignored. Matches the hardware
+                              # yaml, which never had the bug.
+    uncertified_v_cap_enabled: false
+    uncertified_v_cap: 1.0
+
+    vehicle_thrust_scaling: 0.08259793214
+    vehicle_idle_thrust: 0.2535571429
+    vehicle_num_rotors: 4
+
+    # nom_pos_kp/nom_vel_kd/nom_accel_max controller-tuning study
+    # (2026-08-23): a fixed-gamma sweep showed mean time-to-goal plateaus
+    # for gamma>=3.5 (11.8s regardless of gamma up to 8.0), meaning that
+    # floor was set by the nominal PD controller, not the CBF -- and the
+    # compiled defaults (kp=1.5, kd=2.0, accel_max=3.0) are under-damped
+    # (kd=2.0 vs the ~2.45 critical-damping value at kp=1.5) and
+    # accel-starved (3.0 m/s^2 barely exceeds the 2.5 m/s^2 the stall-escape
+    # alone needs). A critically-damped, higher-authority point
+    # (accel=8, kp=4, kd=4.0) gave +56% speed and half the deadlocks on 6
+    # CALIBRATION seeds with the adaptive policy's advantage over the best
+    # fixed gamma intact (+4.11%, 6/6, p=0.031) -- but did NOT reproduce on
+    # the 7 disjoint TEST_SEEDS (deadlock 12/300->25/350, adaptive advantage
+    # inverted to -0.70%, 3/7 seeds). Root cause: the more aggressive
+    # nominal command erodes actuator margin specifically in dense-obstacle
+    # (7+) scenes -- 24.5% test deadlock rate there vs 9.1% calibration,
+    # with genuine QP infeasibility appearing (16% of test deadlocks) where
+    # calibration saw none -- and the 55-scene calibration sample at that
+    # density wasn't enough to characterize it. REVERTED to compiled
+    # defaults (this block left unset) rather than deploy an unconfirmed
+    # change; see results/closed_loop_calibration_20260823/ (not yet
+    # frozen) for the full sweep and failure analysis. Worth revisiting
+    # with calibration data stratified toward dense scenes, not a blanket
+    # re-sweep.
+    #
+    # RESOLVED AND NOW ENABLED 2026-08-24 -- see
+    # results/authority_20260824/MANIFEST.md. The 2026-08-23 failure above
+    # was an INTERACTION, not a property of these gains: that attempt ran
+    # at the old narrow gamma range (capped at 3.0), and high authority
+    # REQUIRES high gamma to stay feasible. Deadlocks/350 at high authority
+    # by gamma: 57 (g=1.3), 15 (g=3.0), 10 (g=5.0), 9 (g=8.0) -- capped at
+    # 3.0 you get the aggression without the feasibility margin to absorb
+    # it, exactly the reported 12/300->25/350 signature. Re-run WITH the
+    # widened range on the same 7 disjoint TEST_SEEDS: best-arm cost
+    # 10.998s -> 4.856s (+55.85%), faster on 329/350 scenes (sign test
+    # p=3.6e-74), 0 hard collisions across ALL arms, and deadlocks at the
+    # best arm cut 36 -> 9. Calibration seeds agree (+56.17%, deadlocks
+    # 66->22), so this is not a test-set artifact in either direction.
+    # The dense-scene concern from the old attempt is directly addressed:
+    # 300 of the 600 calibration scenes here are the stratified-dense set
+    # (n_obs in [7,9]), not the 55 the old attempt had.
+    # SITL spot-check attempt 2026-08-24, FAILED, reverted to 8.0/4.0/4.0.
+    # Offline closed-loop validation had found (accel=14, kp=7, kd=7,
+    # gamma=7.0-8.0) 0 hard collisions across 950 episodes spanning
+    # calibration, disjoint TEST_SEEDS, and the DENSE n_obs=7-9 stratum
+    # (~31% faster than 8/4/4/gamma=8 on every one) -- but an 8-scene SITL
+    # spot-check at (14,7,7,gamma=7.5) found 1/8 hard collisions plus a
+    # second episode with an apparent full control-loop divergence
+    # (odometry running away to [87,181,-38]m with thrust pinned
+    # continuously at T_max and a "T integration clamped ... integration
+    # drift or persistently saturating tau" warning firing repeatedly).
+    # Root cause: the offline harness's rigid-body integrator ASSUMES
+    # commanded body rate/thrust is achieved instantaneously (stated
+    # explicitly in body_rate_closed_loop_diag.cpp's header comment,
+    # matching the barrier derivation's own idealization) -- fine at
+    # 8/4/4's authority (0/8 SITL hard collisions there), but at 14/7/7 the
+    # commanded transients are large enough to saturate real thrust
+    # persistently, and once that happens the real PX4 rate-controller +
+    # Gazebo response diverges from what the idealized offline sim assumed.
+    # 950 offline episodes with zero failures said nothing about this,
+    # because the offline harness's own idealization was the thing that
+    # broke, not the controller logic it was testing. Do not re-promote an
+    # authority increase without a SITL check at each step -- do not trust
+    # offline-only margin at a higher authority than has actually been
+    # SITL-validated.
+    # DEPLOYED 2026-08-24 after a full bisection: (10,5,5) and (12,6,6)
+    # both PASSED SITL cleanly (8/8 reached, 0/8 hard, no divergence).
+    # (13,6.5,6.5) and (14,7,7) both FAILED SITL despite passing every
+    # offline check (13: 1/8 scenes never reached goal, vehicle overshot to
+    # z=6.7m then crashed through the ground; 14: 1/8 hard collision + 1/8
+    # apparent full divergence). Root cause identified precisely: EVERY
+    # authority level tested has the same benign-looking QP-infeasible tick
+    # right after arming (a pre-existing, latent quirk, not new) -- what
+    # changes with authority is how violently the controller RECOVERS from
+    # it. Recovery is clean through 12/6/6; at 13/6.5/6.5 it overshoots
+    # badly enough in 1/8 scenes to send the vehicle tumbling away
+    # uncontrolled. This is the offline-harness/SITL fidelity gap
+    # localized to a specific, narrow mechanism (the infeasible-braking
+    # recovery transient), not a general "high authority is unsafe" claim.
+    # (12,6,6,gamma=7.0) is therefore the validated ceiling for this
+    # accel/kp=kd=accel/2 scaling family -- ~20% faster than the original
+    # 8/4/4/gamma=8 baseline across calibration/TEST_SEEDS/DENSE, and
+    # actually safer on SITL clearance (0.543m vs 0.458m). Worth a future,
+    # narrowly-scoped fix: harden/rate-limit the command coming out of an
+    # infeasible-braking cycle specifically, rather than treating this as
+    # purely an authority-ceiling problem -- that could plausibly raise the
+    # ceiling further without re-introducing this failure mode. Not
+    # attempted this session.
+    # REVERTED 2026-08-24: (12,6,6,gamma=7.0) was believed SITL-validated
+    # (0/8 hard collisions, better clearance than this baseline) based on an
+    # 8-scene spot-check -- see the deploy history above. That spot-check
+    # was contaminated: an orphaned synthetic_obstacle_publisher process
+    # from an earlier (SIGKILL'd) launch had been running since 11:52 that
+    # day, feeding stale scene_00 obstacle data into every subsequent
+    # episode's /arc/obstacles topic alongside the real publisher (see
+    # penn_gat_training/TESTING.md's Tier 4 section for the full incident
+    # and the cleanup fix). After fixing cleanup and re-running a properly-
+    # powered n=50 clean battery (results/sitl_battery_20260824_20260824/),
+    # (12,6,6,gamma=7.0) showed 2/50 hard collisions (4%, 95% Clopper-Pearson
+    # CI [0.5%, 13.7%]) -- neither collision showed the arming-transient
+    # signature that motivated the original bisection stopping point (no
+    # infeasible ticks, no omega spikes; both looked like normal completed
+    # flights that simply grazed/penetrated mid-flight), i.e. this is a
+    # DIFFERENT, previously-undetected failure mode, not confirmation of the
+    # earlier one. Reverted to this baseline as the safe holding point.
+    #
+    # VALIDATED 2026-08-24: this baseline (8,4,4,gamma=8) subsequently run
+    # through the same clean n=50 Tier 4 battery -- 0/50 hard collisions,
+    # 95% Clopper-Pearson upper bound 7.1% (results/
+    # sitl_battery_baseline_20260824/, scenes in
+    # sitl_battery_20260824_20260824/). This is the FIRST config in this
+    # project to actually clear TESTING.md's Tier 4 gate at proper sample
+    # size, rather than an n=8 spot-check. 18/50 episodes had at least one
+    # transient QP-infeasible tick (the braking fallback engaging), same
+    # benign pattern documented throughout this file's history, with 0
+    # resulting collisions -- the fallback is doing its job reliably here.
+    # This whole incident (contamination + undetected 12/6/6 failure mode +
+    # this config's clean validation) is the strongest argument in the repo
+    # for why n=8 spot-checks are labeled "not a validation claim."
+    #
+    # RE-DEPLOYED 2026-08-24 after root-causing and fixing both of the 2/50
+    # collision mechanisms in rate_autopilot_core.cpp (not a parameter
+    # change -- see that file's history near uncertified_warned_ids_/
+    # currently_certified_ids_ and infeasible_recovery_ticks):
+    #   (1) certification-routing bug -- tick() was routing the QP's
+    #       certified/uncertified split off a PERMANENT, insert-only set,
+    #       so an obstacle that failed certification once (e.g. a fast
+    #       first sighting) stayed on the soft/slack QP row for the rest of
+    #       the episode even after ObstacleRegistry legitimately
+    #       re-certified it. Fixed to route off live certification state.
+    #   (2) infeasible-recovery cooldown -- the QP-infeasible brake
+    #       fallback was completely memoryless; the instant a tick reported
+    #       feasible again, full nominal authority resumed with no ramp.
+    #       Added a 30-tick (0.3s) linear ramp back to full accel_max after
+    #       any infeasible tick.
+    # Re-ran the SAME n=50 battery: 2/50 -> 1/50 hard collisions (4%->2%,
+    # 95% CI [0.5%,13.7%] -> [0.1%,10.6%]). Scene 24 (mechanism 2) is fully
+    # clean now. Scene 44 (mechanism 1) shrank from a real -0.435m
+    # penetration to a -0.015m graze, with certified=4/uncertified=0/
+    # feasible=1/delta=0 AT the violation tick -- i.e. neither fixed
+    # mechanism was active; best-supported guess is a discrete-time CBF
+    # sampling-rate limit (the barrier is only guaranteed non-negative AT
+    # each 100Hz sample, not continuously between them), not something
+    # patchable the same way as (1)/(2). Not investigated further this
+    # session -- accepted as a known, documented residual risk per explicit
+    # user direction, not silently dropped.
+    #
+    # ADDENDUM 2026-08-25: the "~27% faster, unaffected by the fix" speed
+    # claim above was wrong -- it was computed on a subset that only
+    # excluded the known-collision scene. Full n=50: mean +14.8%, median
+    # +37.5% (most scenes genuinely faster, but 8/50 are SLOWER, some
+    # drastically). Root cause is a THIRD, distinct issue from the two
+    # fixed bugs: a severe, occasionally non-recovering divergence
+    # (position excursions of tens of meters, implausible altitudes) on a
+    # handful of scenes. Reproducibility testing found this is mostly
+    # stochastic (2 of 4 worst scenes didn't recur on rerun), except scene
+    # 27 of the n=50 battery, which reproduced the severe pattern in 2/4
+    # trials -- an elevated but non-deterministic rate, not geometrically
+    # unique (see results/frozen_authority_20260824/MANIFEST.md's addendum
+    # for the full characterization). NOT fixed or further investigated
+    # this session, per explicit user direction -- deployed with this risk
+    # documented, not hidden.
+    # CHANGED 2026-08-27: 12.0/6.0/6.0 -> 8.0/4.0/4.0. This session ran real
+    # n=50 Tier-4 SITL (obstacle scenes, not the Tier-3 point-mass/instant-
+    # actuation proxy) at all three candidates that had been discussed:
+    # (8,4,4) -> 1/50 hard collisions, (12,6,6) -> 2/50 (reproduces the
+    # documented incident), (13,6.5,6.5) -> 3/50. (8,4,4) is the only value
+    # with real hardware-in-the-loop backing; a prior same-day recommendation
+    # of (13,6.5,6.5) based only on the Tier-3 harness was WRONG (see
+    # a-validated-result-is-only-validated-against-the-physics-it-was-
+    # measured-with in the wiki) and is explicitly withdrawn. The 1/50 here
+    # vs. the previously-documented 0/50 for this same authority is not yet
+    # explained (plausibly real-physics run-to-run variance, not confirmed)
+    # -- flag if it recurs.
+    nom_accel_max: 8.0
+    nom_pos_kp: 4.0
+    nom_vel_kd: 4.0
+
+    # Infeasible-solve fallback (added 2026-08-23, see rate_autopilot_core.hpp's
+    # nom_infeasible_brake_kv comment for the full incident this fixes: 9
+    # consecutive infeasible ticks let "coast at current velocity" drive
+    # straight into an obstacle). Braking authority is deliberately higher
+    # than nom_accel_max (cruise) -- an emergency stop should not inherit a
+    # smoothness-motivated cruise limit. Declared here (not just left as the
+    # compiled default) because this is a safety-critical fallback path, not
+    # a tuning knob -- it should be visible on the deploy surface.
+    nom_infeasible_brake_kv: 4.0
+    # RAISED 2026-08-24 to 13.0 (was 12.0) alongside cruise going
+    # 10.0 -> 12.0 above (the validated 12/6/6 deploy point) -- must stay
+    # above cruise, and under the x500's ~13.4 m/s^2 physical lateral
+    # ceiling. (Briefly pushed to 13.4 alongside a 13/6.5/6.5 SITL attempt
+    # the same day that FAILED -- see nom_accel_max's history above;
+    # reverted together with that attempt.)
+    nom_infeasible_brake_accel_max: 13.0
+
+    # UPDATED 2026-08-24 to 8.0 (was 5.0) alongside the authority raise
+    # above. At BASELINE authority 5.0 was chosen over 8.0 for having far
+    # fewer deadlocks (66 vs 102 calibration, 32 vs 36 test) despite being
+    # slower. At HIGH authority that reverses -- 8.0 is both faster AND at
+    # least as reliable (test: 4.856s/9 deadlocks vs 4.988s/10; calibration:
+    # 6.024s/23 vs 6.364s/22, a tie on deadlocks). The optimal constant is
+    # a function of the authority setting, so these two must be changed
+    # together; see results/authority_20260824/MANIFEST.md.
+    # RAISED 2026-08-24 to 7.0, the validated (12,6,6) deploy point -- see
+    # nom_accel_max's history above for the full bisection.
+    # LOWERED 2026-08-30 to 5.0 -- the winner of the real n>=50 SITL
+    # authority+gamma sweep (results/frozen_authority_sweep_20260830/). At
+    # authority (8,4,4), gamma=5.0 was the only fixed value clean on ALL of
+    # {hard collision, deadlock, flyaway} at N=50 (0/50 hard, 0 deadlock,
+    # best p5 obstacle clearance 0.20m). gamma=3.5 collided (weak barrier),
+    # gamma=6.5 flew away once; authorities >=10 collided or deadlocked
+    # 5-10%. This is also the fallback gamma the Stage C adaptive campaign
+    # ran with, so the deployed config now matches what was tested there.
+    cbf_gamma_obs: 5.0  # (history) RAISED 2026-08-24 from 4.0 and now the SOLE
+                        # control gain -- see penn_enabled below, set to
+                        # false the same day. With PENN disabled this value
+                        # is used on every tick, not just as a fallback.
+                        # Chosen from the seeded closed-loop campaign at the
+                        # widened range (results/frozen_widerange_20260824/):
+                        # among fixed(5.0) and fixed(8.0), the two
+                        # consistently-best constants across 3350 episodes
+                        # (2 calibration sets + disjoint TEST_SEEDS), 8.0 is
+                        # faster when it reaches the goal (~5% lower mean
+                        # t_goal) but has 25-70% MORE deadlocks in every
+                        # dataset (e.g. TEST_SEEDS: 36/350 vs 32/350; dense
+                        # calibration: 61/300 vs 36/300) -- a real
+                        # reliability tradeoff, not a rounding difference.
+                        # 5.0 was also the empirical best-fixed arm on 14/19
+                        # seeds tested. Both are 0 hard collisions everywhere
+                        # tested. penn_gamma_min/max below stay at the wide
+                        # range as documentation for when PENN is re-enabled.
+
+    # Obstacle geometry model for the collision barrier.
+    #   false (default) -- sphere: h = |p - c|^2 - d_min^2, full 3-D distance.
+    #     Original certified behavior; a finite obstacle can be overflown.
+    #   true  -- vertical cylinder: the barrier uses the HORIZONTAL distance
+    #     only, so the obstacle footprint must be cleared at every altitude
+    #     (matches the real 0.75 m floor cylinders; overflying impossible).
+    # Structural -- read once at node construction, not live-reloaded. Screened
+    # on the cylinder-barrier branch (Tier 0-4, PLAN_cylinder_barrier_20260831
+    # .md); left false here pending the plan's owner-review checklist. Flip via
+    # the SITL launch arg `cbf_cylinder_barrier:=true` to A/B it.
+    cbf_cylinder_barrier: false
+
+    # Stall-triggered escape maneuver: the reactive CBF-QP has no lookahead,
+    # so consecutive obstacles can compound into a local minimum (confirmed
+    # via randomized stress testing 2026-08-10 -- see single_vehicle_cbf_rate_
+    # client.cpp's updateStallEscape). Gamma tuning alone does not resolve
+    # this; a sustained near-zero-speed period away from the goal instead
+    # triggers a temporary lateral bias on the nominal reference, alternating
+    # side each retry. (A probe-both-directions-before-committing variant was
+    # tried and reverted -- net worse in an 8-run test, 25% vs 44% success,
+    # each attempt 3-5x slower. See conversation, 2026-08-10.)
+    stall_speed_threshold: 0.08  # m/s
+    stall_duration_sec: 2.5
+    escape_duration_sec: 2.5
+    escape_lateral_accel: 2.5  # m/s^2
+    escape_goal_pull_scale: 0.3  # de-weight goal-pull during escape so the
+                                 # lateral push isn't diluted by the shared
+                                 # nom_accel_max norm-clamp (see nominalCommand)
+    goal_arrival_tolerance: 0.3  # m
+
+    # RE-ENABLED 2026-08-27. Root cause of the 2026-08-24 loss (below) was
+    # diagnosed as a train/inference task mismatch (within-state ranking
+    # was anti-correlated, Spearman rho=-0.449) and fixed via PLAN_adaptive_
+    # recovery_20260826.md Phase 1 (conservative-ratchet fallback, no more
+    # circular fallback) + Phase 2 (retrain at K=6 candidates/state, >=50k
+    # states, decision-weight label emission -- see gat_penn_clean_20260826
+    # in penn_gat_training/). Retrained checkpoint: rho=+0.781 (97% correct
+    # within-state ordering) on held-out states.
+    #
+    # 2026-08-30 RE-VALIDATION (results/frozen_authority_sweep_20260830/):
+    # clean n=50 matched-pairs SITL at the deployed authority (8,4,4),
+    # adaptive vs fixed cbf_gamma_obs=5.0 on identical obstacle scenes.
+    # MIXED result:
+    #   + speed: adaptive +15% mean t_goal (+11% avg per-scene), faster on
+    #     46% of scenes -- mostly by rescuing scenes where fixed gamma=5.0
+    #     stalls (~8s -> ~5s, +33%). MEDIAN t_goal unchanged.
+    #   + rescued 1/50 scene that fixed gamma=5.0 deadlocked.
+    #   - SAFETY REGRESSION: 3/50 HARD COLLISIONS (6%, 95% CI 2.2-16.5%),
+    #     obstacle penetration -7..-11cm, on scenes fixed gamma=5.0 cleared
+    #     by +13..+39cm. p5 clearance NEGATIVE. Selector drops gamma to its
+    #     2.0 floor on approach everywhere; 3 geometries punish it.
+    # This does NOT clear the n>=50 zero-hard-collision deploy gate
+    # (TESTING.md Tier 4). penn_enabled kept true here as a deliberate
+    # project-owner decision (2026-08-30) prioritising the speed gain, with
+    # the collision risk documented and accepted pending the Phase 3
+    # ranking-aware retrain (PLAN_adaptive_hardening_20260829.md). The
+    # earlier "8-13% paired speed, 0 hard collisions" claim was measured at
+    # the since-WITHDRAWN (13,6.5,6.5) authority -- superseded.
+    penn_enabled: true
+    penn_fallback_step: 0.5  # Phase 1.1: end-of-selectGamma() fallback is
+                             # now a ratchet (prev_gamma - fallback_step,
+                             # floored at penn_gamma_min), replacing the old
+                             # circular best-fallback tracking implicated in
+                             # 60% of collision episodes at ~13% of ticks.
+    # penn_feasibility_gate (Phase 1.2, probes actual QP feasibility per
+    # candidate) is implemented (rate_autopilot_core.cpp's
+    # probeGammaFeasible()) but NOT enabled here -- the validated n>=50
+    # SITL numbers above were measured with it off; enabling it requires
+    # its own A/B before flipping on the deploy surface.
+    # [HISTORY] DISABLED 2026-08-24 (was true). The 2026-08-10 A/B
+                        # result below no longer reflects the deployed
+                        # config: that test predates both the gamma-range
+                        # widening and the QP-infeasibility braking fix. At
+                        # the widened range [1.3,8.0], the adaptive PENN
+                        # selector was re-measured against the fair fixed-
+                        # gamma baseline it was missing before (see
+                        # results/frozen_widerange_20260824/MANIFEST.md) and
+                        # LOST on 6/7 disjoint TEST_SEEDS (-0.9% to -11.5%
+                        # paired speed vs the best fixed arm, one win at
+                        # +1.5%), with 0/350 hard collisions either way.
+                        # Three independent fixes were tried and each failed
+                        # to close the gap: SELECTION_RULE=max_gamma (raised
+                        # mean gamma_used 4.9->6.4 but got SLOWER, ruling out
+                        # "wrong average setpoint"), CBF_GAMMA_OBS=5.0 fallback
+                        # (left the arm's own mean t_goal unchanged), and a
+                        # new continuity/hysteresis penalty on gamma changes
+                        # (penn_gamma_selector.hpp's continuity_weight --
+                        # made things WORSE, saturating quickly). The
+                        # remaining plausible cause is model/training-level
+                        # (GAMMA_RANGE's bin edges are much sparser above the
+                        # split=3.5 point than below it -- see
+                        # drone_data_generation.py's default_gamma_bin_edges),
+                        # not a tunable selector parameter. cbf_gamma_obs
+                        # below is now the sole control gain. Re-enabling
+                        # this requires a genuine fix to the above, not a
+                        # knob flip -- the ORIGINAL 2026-08-10 result below
+                        # is preserved for context but should not be read as
+                        # still-current evidence for penn_enabled:true.
+                        #
+                        # [ORIGINAL 2026-08-10 A/B, narrow range, pre-braking-fix]
+                        # A/B tested against fixed cbf_gamma_obs=4.0 on the
+                        # hard-tier randomized courses (see conversation):
+                        # 8/8 success with PENN + penn_proximity_gate_m vs 5/10
+                        # for fixed gamma, including 2/2 repeat confirmation on
+                        # the 3 courses fixed gamma was least reliable on. No
+                        # regression on easy/moderate (spot-checked). This
+                        # setting previously caused a wide/non-smooth
+                        # obstacle-avoidance path (2026-08-02) before
+                        # penn_proximity_gate_m existed -- if that recurs,
+                        # suspect the gate value (currently 3.0m) needs tuning
+                        # before reverting to false.
+    penn_model_path: "checkpoint/gat_penn_weights.pt"  # C++ node loads the flat
+                         # exported-tensor weights (tools/export_penn_weights.py),
+                         # not the raw Quadrotor3D_gat.pth -- see
+                         # single_vehicle_cbf_rate_arc's port plan.
+                         # UPDATED 2026-08-27: re-exported from the retrained
+                         # gat_penn_clean_20260826.pth (penn_gat_training/
+                         # nn_model/checkpoint/) via
+                         # CHECKPOINT_PATH=.../gat_penn_clean_20260826.pth
+                         # python3 export_penn_weights.py. Same filename, new
+                         # weights -- the old widerange checkpoint's weights
+                         # at this path are gone.
+    # penn_gamma_min/max UPDATED 2026-08-27 to 2.0/9.5, matching the
+    # retrained checkpoint's candidate_gammas training range
+    # ({2.0,3.5,5.0,6.5,8.0,9.5}, widened from {3.0,5.0,7.0,9.0} in
+    # body_rate_pareto_label_export.cpp as part of the Phase 2 retrain).
+    # The 1.3/8.0 values below are stale for this checkpoint -- an early
+    # TEST_SEEDS run at the OLD range on the NEW checkpoint produced a real
+    # regression (1/300 hard, 7.84s) before this was caught; the corrected
+    # run at 2.0/9.5 with the thresholds below gave 0/300 hard, 4.93s
+    # (10.7% faster than best fixed).
+    penn_gamma_min: 2.0
+    # [HISTORY] RAISED 2026-08-23 (was 0.5). The seeded closed-loop
+                         # campaign this floor's old comment called for has
+                         # now been run (results/closed_loop_calibration_20260823/,
+                         # not yet frozen): gamma in [1.3, 3.0] cuts
+                         # soft-margin violations from 8 to 0-1 per 300
+                         # calibration episodes (paired McNemar p=0.0156 vs
+                         # the old [0.5, 2.5] range) with no deadlock or
+                         # speed cost, confirmed on the 7 disjoint TEST_SEEDS
+                         # (0/1400 hard collisions, margin-viol no longer
+                         # statistically worse than the best fixed gamma --
+                         # it was, at the old range, p=0.031). This DOES mean
+                         # flying outside the point-mass checkpoint's exact
+                         # validated range as the old comment warned -- 1.3
+                         # is still well inside GAMMA_RANGE=(0.2,3.5)
+                         # (drone_data_generation.py) the network was trained
+                         # on, just not the narrower DEPLOY range it was
+                         # FIRST evaluated at. eval_scene_distribution.py's
+                         # point-mass headline was re-verified at this same
+                         # range before this change (see diag_lcb_cv.py's
+                         # DEPLOY_GAMMA_MIN/MAX env override, added
+                         # alongside this). Decoupling gamma_1/gamma_2/
+                         # gamma_3 (paper Future Work) remains the preferred
+                         # long-term fix for the underlying gamma^3 effect
+                         # this floor works around.
+    penn_gamma_max: 9.5  # UPDATED 2026-08-27 -- see penn_gamma_min comment above.
+    # [HISTORY] RAISED 2026-08-24 (was 3.0). Range widened to
+                         # match GAMMA_RANGE=(0.2,9.0)/DEPLOY_GAMMA_RANGE=
+                         # (1.3,8.0) (drone_data_generation.py) and the
+                         # promoted gat_penn_weights.pt checkpoint (widerange
+                         # retrain, gamma_max normalization constant updated
+                         # to 9.0 in nn_gat_iccbf_predict.py in lockstep). A
+                         # wide fixed-gamma safety sweep found 0 hard
+                         # collisions to gamma=8.0 (gamma=10 breaks).
+                         # [STALE 2026-08-27] This paragraph describes the
+                         # widerange checkpoint superseded above -- kept for
+                         # history only, penn_enabled is now true and the
+                         # actual bound is the 9.5 set above.
+    penn_gamma_steps: 20
+    penn_update_ticks: 10  # was 20 (1.0s) -- halved 2026-08-21 after
+                           # diag_cost_decomposition.py --query-ticks 10
+                           # showed this alone cuts the margin-violation
+                           # rate in half for a gate that targets min_h
+                           # (see penn_gat_training/results/gate_sweep_*.log)
+    penn_proximity_gate_m: 3.0  # skip PENN beyond this range from the nearest
+                                # obstacle -- avoids continuous invocation
+                                # during far-field transit, where the
+                                # epistemic gate reliably rejects every
+                                # candidate and falls back to penn_gamma_min,
+                                # causing gamma to flip-flop (each change
+                                # triggers rebuildQp()). Confirmed via
+                                # penn_gamma_diagnostic 2026-08-10.
+                                #
+                                # UNVALIDATED as of 2026-08-22: this gate has
+                                # no equivalent in eval_scene_distribution.py
+                                # (AdaptivePolicy.select() queries PENN
+                                # whenever >=1 obstacle is visible within
+                                # the sensing envelope, no separate 3m
+                                # cutoff) -- the offline validation never
+                                # exercised this behavior. Also plausible the
+                                # "epistemic gate reliably rejects everything
+                                # far-field" diagnosis it's based on was
+                                # actually the dimension-mismatch crash fixed
+                                # the same day (every PENN call threw and
+                                # fell back silently, which looks identical
+                                # to "the gate rejects everything" from the
+                                # caller's perspective) -- not re-verified
+                                # against the fixed code before this commit.
+    # epistemic_threshold / cvar_boundary: recalibrated 2026-08-22 to match
+    # the RETRAINED checkpoint (aleatoric head fix -- penn.py's log_std_max
+    # clamp widened from -2 to 3.6, since the old ceiling sat ~275x below
+    # the training targets' scale and pinned sigma near-constant regardless
+    # of scene; see penn.py's comment and nn_model/checkpoint's retrain
+    # notes). Values below are from this retrain's
+    # cccp_threshold_Quadrotor3D_gat.json, not the pre-retrain checkpoint's.
+    # cvar_boundary's sign convention: LOWER bound on predicted min_h
+    # (low/negative=dangerous) -- see cccp_calibrate_drone.py's
+    # collect_aleatoric_boundary() and penn_gamma_selector.cpp's
+    # selectGamma(). Re-run nn_model/cccp_calibrate_drone.py and update all
+    # three values here (plus lcb_k below) after every retrain; none of them
+    # are portable across checkpoints.
+    # UPDATED 2026-08-24 for the promoted widerange checkpoint (was 0.106508 /
+    # 0.0122, the narrow-range retrain's values) -- see
+    # nn_model/checkpoint/cccp_threshold_Quadrotor3D_gat_widerange.json.
+    # UPDATED 2026-08-27 from penn_gat_training/nn_model/checkpoint/
+    # cccp_threshold_gat_penn_clean_20260826.json (Phase 2 retrain,
+    # gat_penn_clean_20260826.pth) -- the two values below are from that
+    # file's raw_epistemic_threshold/cvar_boundary, alpha_cal=0.95. Prior
+    # values here (0.10687255859375 / 0.0023882027249783394) belonged to
+    # the superseded widerange checkpoint and are not portable.
+    epistemic_threshold: 0.2608060836791992
+    cvar_boundary: 0.3134114742279059
+    # lcb_k: lower-confidence-bound weight on the risk head's predicted
+    # min_h (mean_risk -= lcb_k*sqrt(var_al+var_ep) before gating -- see
+    # penn_gamma_selector.hpp's GammaSelectionParams::lcb_k).
+    #
+    # diag_lcb_cv.py's point-mass-only sweep (2026-08-22) initially selected
+    # lcb_k=1.50 (min margin-violations among 0-hard-collision candidates,
+    # 6 calibration / 7 test seeds). Deploying that on the ACTUAL body-rate
+    # controller (client_lib/tools/body_rate_closed_loop_diag.cpp's seeded
+    # campaign, 7 seeds x 50 scenes x 4 arms = 1400 episodes) made deadlocks
+    # WORSE (14/350 -> 22/350) and speed worse (+2.3% -> -2.1% paired vs
+    # best-fixed-per-seed) than lcb_k=0, with no hard-collision benefit
+    # either way (0/350 throughout) -- the point-mass calibration never saw
+    # body-rate dynamics' deadlock failure mode, so it couldn't select
+    # against it. A follow-up sweep directly on the closed-loop campaign
+    # (LCB_K=0,0.25,0.5,0.75,1.0,1.5) found lcb_k=0.25 ties lcb_k=0 for
+    # fewest deadlocks (14/350) while cutting margin-violations 8->6/350 --
+    # real, measurable safety work from the aleatoric gate at negligible
+    # cost, unlike every larger value tested. This IS the value that makes
+    # "uncertainty-calibrated" true on the system that actually deploys,
+    # not just on the point-mass proxy it was first calibrated against. See
+    # results/frozen_closed_loop_20260822/MANIFEST.md for the full sweep.
+    # UPDATE 2026-08-23: re-selected at the new penn_gamma_min/max=[1.3,3.0]
+    # above. At that range the raised gamma FLOOR already eliminates the
+    # soft-margin grazing lcb_k=0.25 was selected to fix (0-1 violations per
+    # 300 at every lcb_k tested, not just 0.25) -- so the only remaining
+    # signal is deadlock count, which favors k=0 (13/300 vs 18-22/300 for
+    # k>=0.25, directionally consistent across all 5 comparisons though no
+    # single one clears p<0.05 individually; sign test p=0.0625). This makes
+    # the aleatoric/LCB gate INACTIVE at inference (a no-op), unlike the old
+    # range where it was doing real, measurable work. Point-mass stage-1
+    # re-sweep at the new range picked 0.75 instead (grazing is still a
+    # point-mass failure mode) -- the two stages disagree because each
+    # simulator can only see the failure mode the OTHER range change fixed
+    # or didn't. k=0 was chosen because the deployed system (closed-loop)
+    # took priority over the proxy (point-mass) when the two disagree. This
+    # is a genuine, not cosmetic, weakening of the "uncertainty-calibrated"
+    # claim -- see PAPER_FINAL.md, needs its Phase-A section rewritten
+    # accordingly, not just this number changed.
+    # UPDATE 2026-08-24: unchanged at 0.0, but now moot -- penn_enabled is
+    # false, so this value is not exercised. Re-select alongside re-enabling
+    # PENN, not before.
+    lcb_k: 0.0
+    deadlock_threshold: 5.0  # vestigial as of 2026-08-22 -- selectGamma no
+                             # longer hard-gates on this (the validated
+                             # harness never did either), only the earlier
+                             # risk/epistemic gates. Kept declared in case
+                             # something else still reads it; not read by
+                             # the corrected selection rule.

@@ -1,0 +1,10 @@
+=== zstaged start Mon Aug 31 09:39:16 AM EDT 2026 ===
+  [00 fixed] corridor goal sent 09:39:58
+scene 00 fixed: z_in_corridor=[0.93,1.25]  {"log": "scene_00_fixed.log", "ticks": 102, "reached": true, "t_goal": 23.0, "min_clear": 0.967, "max_absx_corridor": 0.31, "max_absx_all": 0.31, "y_range": [0.08, 5.99], "infeasible_ticks": 0, "strong": true, "fail": []}
+  [00 adaptive] corridor goal sent 09:42:00
+scene 00 adaptive: z_in_corridor=[0.22,0.53]  {"log": "scene_00_adaptive.log", "ticks": 102, "reached": true, "t_goal": 23.01, "min_clear": 1.026, "max_absx_corridor": 1.29, "max_absx_all": 1.29, "y_range": [0.08, 5.96], "infeasible_ticks": 0, "strong": true, "fail": []}
+  [19 fixed] corridor goal sent 09:44:04
+scene 19 fixed: z_in_corridor=[1.01,1.24]  {"log": "scene_19_fixed.log", "ticks": 102, "reached": true, "t_goal": 27.0, "min_clear": 0.834, "max_absx_corridor": 0.72, "max_absx_all": 0.72, "y_range": [0.16, 5.95], "infeasible_ticks": 0, "strong": true, "fail": []}
+  [19 adaptive] corridor goal sent 09:46:08
+scene 19 adaptive: z_in_corridor=[-0.01,1.36]  {"log": "scene_19_adaptive.log", "ticks": 102, "reached": true, "t_goal": 41.01, "min_clear": 0.396, "max_absx_corridor": 0.82, "max_absx_all": 14.94, "y_range": [-1.51, 23.71], "infeasible_ticks": 1, "strong": false, "fail": ["flyaway"]}
+ZSTAGED_DONE Mon Aug 31 09:47:30 AM EDT 2026

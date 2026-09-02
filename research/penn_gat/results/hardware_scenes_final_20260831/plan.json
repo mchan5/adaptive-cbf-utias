@@ -1,0 +1,315 @@
+{
+  "root": "/home/matt/arc_2026/control-barrier-functions-arc/penn_gat_training/results/hardware_scenes_final_20260831",
+  "scenes": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19
+  ],
+  "arms": [
+    "fixed_g5",
+    "adaptive"
+  ],
+  "trials_per_cell": 3,
+  "seed": 20260831,
+  "regime": "sitl",
+  "scene_dir": "/home/matt/arc_2026/control-barrier-functions-arc/penn_gat_training/results/hardware_scenes_final_20260831/scenes",
+  "order": {
+    "0": [
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ]
+    ],
+    "1": [
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ]
+    ],
+    "2": [
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ]
+    ],
+    "3": [
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ]
+    ],
+    "4": [
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ]
+    ],
+    "5": [
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ]
+    ],
+    "6": [
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ]
+    ],
+    "7": [
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ]
+    ],
+    "8": [
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ]
+    ],
+    "9": [
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ]
+    ],
+    "10": [
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ]
+    ],
+    "11": [
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ]
+    ],
+    "12": [
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ]
+    ],
+    "13": [
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ]
+    ],
+    "14": [
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ]
+    ],
+    "15": [
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ]
+    ],
+    "16": [
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ]
+    ],
+    "17": [
+      [
+        "adaptive",
+        "fixed_g5"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ]
+    ],
+    "18": [
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ]
+    ],
+    "19": [
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "fixed_g5",
+        "adaptive"
+      ],
+      [
+        "adaptive",
+        "fixed_g5"
+      ]
+    ]
+  }
+}

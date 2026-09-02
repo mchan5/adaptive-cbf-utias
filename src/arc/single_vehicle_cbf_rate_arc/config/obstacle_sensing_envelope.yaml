@@ -1,0 +1,29 @@
+# Shared obstacle sensing envelope for the ARC CBF stack.
+#
+# Loaded by BOTH obstacle sources so they hand the CBF node the same sensing
+# conditions regardless of which one is running:
+#   - lidar_obstacle_publisher      (hardware, obstacle_source:=lidar)
+#   - synthetic_obstacle_publisher  (SITL, and hardware obstacle_source:=manual)
+#
+# Before this file these values were duplicated three ways: node-default
+# parameters, per-launch DeclareLaunchArgument defaults, and a hand-maintained
+# "must match lidar_obstacle_publisher exactly" comment in
+# synthetic_obstacle_publisher_node.py. Edit them here, nowhere else. The node
+# declare_parameter() defaults still exist but only apply to a bare `ros2 run`
+# of a publisher on its own; every launch path overrides them from this file.
+
+max_range_m: 8.0   # drop obstacles whose nearest surface is farther than this
+z_min_m: 0.1       # world-frame obstacle band, lower bound (excludes floor returns)
+z_max_m: 2.5       # world-frame obstacle band, upper bound (excludes overhead clutter)
+
+# lidar_obstacle_publisher only -- synthetic_obstacle_publisher has no
+# clustering step and ignores this key.
+#
+# Hard cap on a reported cluster radius. Set to obs_d_min - obs_safety_margin
+# (1.0 - 0.5, from params_single_vehicle_cbf_rate_arc.yaml): the CBF-QP
+# collision constraint uses a single shared obs_d_min for every obstacle, so a
+# cluster reported larger than that would be under-cleared (drone allowed
+# inside its true extent). Real obstacles in the test volume are <= 0.5 m
+# radius by design; this cap only guards against a merge/artifact producing a
+# spuriously large blob.
+max_obstacle_radius_m: 0.5

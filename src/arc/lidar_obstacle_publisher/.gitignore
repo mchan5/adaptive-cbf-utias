@@ -1,0 +1,6 @@
+# Recorded bench bags for test/test_bag_replay.py -- large, not version controlled.
+# The fixture metadata (test/fixtures/bench_replay.yaml) IS committed.
+test/fixtures/*.bag/
+test/fixtures/*.bag
+test/fixtures/*.mcap
+test/fixtures/*.db3

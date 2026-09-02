@@ -1,0 +1,121 @@
+{
+  "seed": 20260829,
+  "y_range": [
+    1.0,
+    4.8
+  ],
+  "x_range": [
+    -1.4,
+    1.4
+  ],
+  "z_range": [
+    1.0,
+    1.9
+  ],
+  "radius_range": [
+    0.4,
+    0.8
+  ],
+  "scenes": [
+    {
+      "scene": 0,
+      "n_obstacles": 4,
+      "path": "scene_00.json"
+    },
+    {
+      "scene": 1,
+      "n_obstacles": 3,
+      "path": "scene_01.json"
+    },
+    {
+      "scene": 2,
+      "n_obstacles": 4,
+      "path": "scene_02.json"
+    },
+    {
+      "scene": 3,
+      "n_obstacles": 4,
+      "path": "scene_03.json"
+    },
+    {
+      "scene": 4,
+      "n_obstacles": 1,
+      "path": "scene_04.json"
+    },
+    {
+      "scene": 5,
+      "n_obstacles": 2,
+      "path": "scene_05.json"
+    },
+    {
+      "scene": 6,
+      "n_obstacles": 4,
+      "path": "scene_06.json"
+    },
+    {
+      "scene": 7,
+      "n_obstacles": 3,
+      "path": "scene_07.json"
+    },
+    {
+      "scene": 8,
+      "n_obstacles": 2,
+      "path": "scene_08.json"
+    },
+    {
+      "scene": 9,
+      "n_obstacles": 2,
+      "path": "scene_09.json"
+    },
+    {
+      "scene": 10,
+      "n_obstacles": 1,
+      "path": "scene_10.json"
+    },
+    {
+      "scene": 11,
+      "n_obstacles": 1,
+      "path": "scene_11.json"
+    },
+    {
+      "scene": 12,
+      "n_obstacles": 3,
+      "path": "scene_12.json"
+    },
+    {
+      "scene": 13,
+      "n_obstacles": 2,
+      "path": "scene_13.json"
+    },
+    {
+      "scene": 14,
+      "n_obstacles": 1,
+      "path": "scene_14.json"
+    },
+    {
+      "scene": 15,
+      "n_obstacles": 4,
+      "path": "scene_15.json"
+    },
+    {
+      "scene": 16,
+      "n_obstacles": 3,
+      "path": "scene_16.json"
+    },
+    {
+      "scene": 17,
+      "n_obstacles": 2,
+      "path": "scene_17.json"
+    },
+    {
+      "scene": 18,
+      "n_obstacles": 2,
+      "path": "scene_18.json"
+    },
+    {
+      "scene": 19,
+      "n_obstacles": 1,
+      "path": "scene_19.json"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>lidar_obstacle_publisher</name>
+  <version>0.1.0</version>
+  <description>Real-time obstacle detection from a LiDAR point cloud, publishing the same visualization_msgs/MarkerArray contract on /arc/obstacles as synthetic_obstacle_publisher (marker.pose.position = centroid, marker.scale.x = diameter). This is the LiDAR-informed alternative to hand-entering obstacle positions -- both publish the same message type on the same topic, so single_vehicle_cbf_rate_arc does not need to know which one is running. Target sensor is a Livox Mid-360 via Livox-SDK/livox_ros_driver2 (not included here -- see lidar_obstacle_publisher_node.py's docstring for required driver config), publishing sensor_msgs/PointCloud2.</description>
+  <maintainer email="matthew.chan0607@gmail.com">mchan5</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+  <depend>sensor_msgs</depend>
+  <depend>sensor_msgs_py</depend>
+  <depend>nav_msgs</depend>
+  <depend>visualization_msgs</depend>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

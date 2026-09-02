@@ -1,0 +1,45 @@
+# Ground-truth fixture for test/test_bag_replay.py.
+#
+# Committed as a TEMPLATE: with bag_path null the replay test skips, so the
+# suite stays green until real data exists. During a bench session:
+#   1. run  tools/record_bench_bag.sh  (see fixtures/README.md)
+#   2. measure each obstacle's true position in the SAME frame the odom is
+#      expressed in (world / ENU), fill `obstacles` below
+#   3. set bag_path to the recorded bag directory name (kept next to this file)
+# Commit this filled-in file; the .bag directory itself is gitignored.
+
+bag_path: null                 # e.g. bench_replay.bag  (relative to this dir)
+storage_id: sqlite3            # rosbag2 storage: sqlite3 (Humble default) or mcap
+pointcloud_topic: /livox/lidar
+odom_topic: /state_estimator/local_position/odom
+
+# Applied as parameter_overrides when the node is constructed for replay.
+# Keep in sync with what the deployed launch actually sets
+# (obstacle_sensing_envelope.yaml + the measured mount offset).
+params:
+  frame_id: map
+  sensor_offset_xyz: [0.0, 0.0, 0.0]
+  sensor_offset_rpy_deg: [0.0, 0.0, 0.0]
+  min_range_m: 0.2
+  max_range_m: 8.0
+  z_min_m: 0.1
+  z_max_m: 2.5
+  voxel_size_m: 0.15
+  min_cluster_points: 8
+  min_obstacle_diameter_m: 0.2
+  max_obstacle_radius_m: 0.5
+  max_obstacles: 20
+  tracking_max_jump_m: 0.5
+
+# Physical obstacles present during the recording, measured in world/ENU.
+obstacles:
+  - name: box_A
+    center_xyz: [0.0, 0.0, 0.0]
+    radius_m: 0.25
+
+# Pass/fail thresholds.
+expect:
+  centroid_tol_m: 0.30      # a detected cluster within this of a truth centre "matches" it
+  min_detections: 5         # each obstacle must be matched in >= this many published frames
+  require_stable_id: true   # the matching marker.id must be constant across those frames
+  max_reported_radius_m: 0.5  # no emitted marker may exceed this (scale.x / 2)

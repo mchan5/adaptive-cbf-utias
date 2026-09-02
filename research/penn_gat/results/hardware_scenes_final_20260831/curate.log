@@ -1,0 +1,87 @@
+=== CURATE start Mon Aug 31 01:22:55 AM EDT 2026 ===
+resume: passable=0 reroute=0 already accepted
+--- cand_000 (passable n=2)  01:22:55 ---
+  fixed:    {"log": "cand_000_fixed.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.27, "max_absx_corridor": 0.47, "max_absx_all": 0.47, "y_range": [0.07, 5.98], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_000_adaptive.log", "ticks": 77, "reached": true, "t_goal": 2.0, "min_clear": 1.441, "max_absx_corridor": 0.49, "max_absx_all": 0.49, "y_range": [0.17, 6.08], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_00  (passable 1/12, reroute 0/8)
+--- cand_001 (passable n=2)  01:26:11 ---
+  fixed:    {"log": "cand_001_fixed.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 0.93, "max_absx_corridor": 0.65, "max_absx_all": 0.65, "y_range": [0.03, 6.01], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_001_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.093, "max_absx_corridor": 0.33, "max_absx_all": 0.33, "y_range": [-0.04, 6.08], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_01  (passable 2/12, reroute 0/8)
+--- cand_002 (passable n=2)  01:29:28 ---
+  fixed:    {"log": "cand_002_fixed.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.026, "max_absx_corridor": 0.77, "max_absx_all": 0.77, "y_range": [0.0, 6.04], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_002_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 0.927, "max_absx_corridor": 0.21, "max_absx_all": 0.21, "y_range": [-0.01, 6.06], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_02  (passable 3/12, reroute 0/8)
+--- cand_003 (passable n=2)  01:32:44 ---
+  fixed:    {"log": "cand_003_fixed.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 0.932, "max_absx_corridor": 0.77, "max_absx_all": 0.77, "y_range": [0.05, 6.05], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_003_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.258, "max_absx_corridor": 0.4, "max_absx_all": 0.4, "y_range": [-0.04, 6.06], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_03  (passable 4/12, reroute 0/8)
+--- cand_004 (passable n=2)  01:36:01 ---
+  fixed:    {"log": "cand_004_fixed.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 0.885, "max_absx_corridor": 0.54, "max_absx_all": 0.54, "y_range": [0.5, 6.01], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_004_adaptive.log", "ticks": 77, "reached": true, "t_goal": 2.0, "min_clear": 1.519, "max_absx_corridor": 0.03, "max_absx_all": 0.1, "y_range": [0.01, 6.09], "infeasible_ticks": 1, "strong": true, "fail": []}
+  ACCEPT -> scene_04  (passable 5/12, reroute 0/8)
+--- cand_005 (passable n=3)  01:39:17 ---
+  fixed:    {"log": "cand_005_fixed.log", "ticks": 77, "reached": true, "t_goal": 4.0, "min_clear": 0.83, "max_absx_corridor": 0.5, "max_absx_all": 0.5, "y_range": [0.01, 6.13], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_005_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.185, "max_absx_corridor": 0.21, "max_absx_all": 0.21, "y_range": [0.02, 6.09], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_05  (passable 6/12, reroute 0/8)
+--- cand_006 (passable n=3)  01:42:34 ---
+  fixed:    {"log": "cand_006_fixed.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.395, "max_absx_corridor": 0.66, "max_absx_all": 0.66, "y_range": [0.01, 6.14], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_006_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.098, "max_absx_corridor": 0.12, "max_absx_all": 0.12, "y_range": [-0.0, 6.07], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_06  (passable 7/12, reroute 0/8)
+--- cand_007 (passable n=3)  01:45:50 ---
+  fixed:    {"log": "cand_007_fixed.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.042, "max_absx_corridor": 0.65, "max_absx_all": 0.65, "y_range": [0.05, 5.92], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_007_adaptive.log", "ticks": 77, "reached": true, "t_goal": 2.0, "min_clear": 1.104, "max_absx_corridor": 0.04, "max_absx_all": 0.11, "y_range": [0.17, 6.06], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_07  (passable 8/12, reroute 0/8)
+--- cand_008 (passable n=4)  01:49:07 ---
+  fixed:    {"log": "cand_008_fixed.log", "ticks": 77, "reached": true, "t_goal": 4.0, "min_clear": 0.974, "max_absx_corridor": 0.49, "max_absx_all": 0.49, "y_range": [0.04, 5.97], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_008_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 0.819, "max_absx_corridor": 0.13, "max_absx_all": 0.13, "y_range": [-0.0, 6.06], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_08  (passable 9/12, reroute 0/8)
+--- cand_009 (passable n=4)  01:52:23 ---
+  fixed:    {"log": "cand_009_fixed.log", "ticks": 77, "reached": true, "t_goal": 4.0, "min_clear": 0.927, "max_absx_corridor": 0.26, "max_absx_all": 0.26, "y_range": [0.04, 6.04], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_009_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 0.829, "max_absx_corridor": 0.01, "max_absx_all": 0.05, "y_range": [-0.05, 6.05], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_09  (passable 10/12, reroute 0/8)
+--- cand_010 (passable n=5)  01:55:39 ---
+  fixed:    {"log": "cand_010_fixed.log", "ticks": 77, "reached": true, "t_goal": 21.0, "min_clear": 0.828, "max_absx_corridor": 0.76, "max_absx_all": 0.76, "y_range": [0.0, 5.94], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_010_adaptive.log", "ticks": 77, "reached": true, "t_goal": 2.0, "min_clear": 0.59, "max_absx_corridor": 0.06, "max_absx_all": 0.06, "y_range": [1.21, 6.07], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_10  (passable 11/12, reroute 0/8)
+--- cand_011 (passable n=5)  01:58:56 ---
+  fixed:    {"log": "cand_011_fixed.log", "ticks": 77, "reached": true, "t_goal": 8.0, "min_clear": 0.873, "max_absx_corridor": 0.41, "max_absx_all": 0.88, "y_range": [-0.21, 5.98], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_011_adaptive.log", "ticks": 76, "reached": true, "t_goal": 5.0, "min_clear": 0.903, "max_absx_corridor": 0.15, "max_absx_all": 0.15, "y_range": [-0.01, 5.97], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_11  (passable 12/12, reroute 0/8)
+--- cand_022 (reroute n=3)  02:02:13 ---
+  fixed:    {"log": "cand_022_fixed.log", "ticks": 76, "reached": true, "t_goal": 3.0, "min_clear": 1.201, "max_absx_corridor": 0.68, "max_absx_all": 0.68, "y_range": [0.0, 6.03], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_022_adaptive.log", "ticks": 76, "reached": true, "t_goal": 2.0, "min_clear": 0.949, "max_absx_corridor": 0.2, "max_absx_all": 0.2, "y_range": [0.89, 6.09], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_12  (passable 12/12, reroute 1/8)
+--- cand_023 (reroute n=3)  02:05:29 ---
+  fixed:    {"log": "cand_023_fixed.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.428, "max_absx_corridor": 1.0, "max_absx_all": 1.0, "y_range": [0.06, 6.05], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_023_adaptive.log", "ticks": 76, "reached": true, "t_goal": 3.0, "min_clear": 0.93, "max_absx_corridor": 0.21, "max_absx_all": 0.21, "y_range": [0.01, 6.09], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_13  (passable 12/12, reroute 2/8)
+--- cand_024 (reroute n=3)  02:08:46 ---
+  fixed:    {"log": "cand_024_fixed.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.509, "max_absx_corridor": 0.69, "max_absx_all": 0.69, "y_range": [0.02, 6.03], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_024_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.398, "max_absx_corridor": 0.8, "max_absx_all": 0.8, "y_range": [-0.02, 6.02], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_14  (passable 12/12, reroute 3/8)
+--- cand_025 (reroute n=4)  02:12:02 ---
+  fixed:    {"log": "cand_025_fixed.log", "ticks": 77, "reached": true, "t_goal": 4.0, "min_clear": 0.878, "max_absx_corridor": 0.18, "max_absx_all": 0.18, "y_range": [-0.03, 6.03], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_025_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 0.53, "max_absx_corridor": 0.09, "max_absx_all": 0.09, "y_range": [0.07, 6.08], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_15  (passable 12/12, reroute 4/8)
+--- cand_026 (reroute n=4)  02:15:19 ---
+  fixed:    {"log": "cand_026_fixed.log", "ticks": 77, "reached": true, "t_goal": 7.0, "min_clear": 0.849, "max_absx_corridor": 0.57, "max_absx_all": 0.57, "y_range": [0.06, 5.93], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_026_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 0.981, "max_absx_corridor": 0.08, "max_absx_all": 0.08, "y_range": [-0.02, 6.06], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_16  (passable 12/12, reroute 5/8)
+--- cand_027 (reroute n=4)  02:18:35 ---
+  fixed:    {"log": "cand_027_fixed.log", "ticks": 77, "reached": true, "t_goal": 4.0, "min_clear": 0.963, "max_absx_corridor": 0.24, "max_absx_all": 0.24, "y_range": [0.06, 5.99], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_027_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.094, "max_absx_corridor": 0.11, "max_absx_all": 0.11, "y_range": [0.0, 6.04], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_17  (passable 12/12, reroute 6/8)
+--- cand_028 (reroute n=5)  02:21:52 ---
+  fixed:    {"log": "cand_028_fixed.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 0.799, "max_absx_corridor": 0.9, "max_absx_all": 0.9, "y_range": [-0.02, 5.94], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_028_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 0.741, "max_absx_corridor": 0.05, "max_absx_all": 0.05, "y_range": [0.02, 6.05], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_18  (passable 12/12, reroute 7/8)
+--- cand_029 (reroute n=6)  02:25:08 ---
+  fixed:    {"log": "cand_029_fixed.log", "ticks": 77, "reached": true, "t_goal": 19.0, "min_clear": 0.831, "max_absx_corridor": 0.95, "max_absx_all": 0.95, "y_range": [0.01, 5.98], "infeasible_ticks": 0, "strong": true, "fail": []}
+  adaptive: {"log": "cand_029_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 0.959, "max_absx_corridor": 0.2, "max_absx_all": 0.2, "y_range": [0.03, 6.05], "infeasible_ticks": 0, "strong": true, "fail": []}
+  ACCEPT -> scene_19  (passable 12/12, reroute 8/8)
+=== CURATE done Mon Aug 31 02:28:26 AM EDT 2026  accepted passable=12 reroute=8 ===
+finalized: /home/matt/arc_2026/control-barrier-functions-arc/penn_gat_training/results/hardware_scenes_final_20260831
+  scenes_seed20260831.pt (20 scenes)
+  plan.json  (20 x [fixed_g5, adaptive] x 3, sitl)
+CURATE_COMPLETE

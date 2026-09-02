@@ -1,0 +1,59 @@
+# ---------------------------------------------------------------------------
+# Build output — colcon writes one tree per ROS distro (build_humble /
+# install_humble everywhere now). The globs cover every distro variant at any
+# depth, so a stray build_jazzy/ from the old setup is caught too.
+# ---------------------------------------------------------------------------
+build*/
+install*/
+log*/
+
+# ---------------------------------------------------------------------------
+# Per-device files. Anything whose correct contents differ between the desktop,
+# the laptop and the Jetson must not be tracked — that is the single rule that
+# keeps three machines on one branch without conflicts.
+# ---------------------------------------------------------------------------
+.vscode/settings.json
+.arc-local.env
+
+# Dormant research kept locally only: safe_control, online_adaptive_cbf,
+# drone_cbf_penn, fsc_autopilot_ros2. Not in this repo, not on the Jetson.
+/reference/
+
+# ---------------------------------------------------------------------------
+# Third-party trees installed separately, never vendored here
+# ---------------------------------------------------------------------------
+PX4-Autopilot/
+Micro-XRCE-DDS-Agent/
+micro-ROS-Agent/
+
+# ---------------------------------------------------------------------------
+# Datasets and bulk training output. Deployed model weights are NOT covered
+# here — they are flight assets loaded at runtime by penn_gamma_selector and
+# are tracked directly.
+# ---------------------------------------------------------------------------
+*.pkl
+*.csv
+*.save
+
+# Bulk experiment output stays local; only the frozen hardware scene sets are
+# tracked as deliverables.
+research/penn_gat/results/
+!research/penn_gat/results/hardware_scenes_final_*/
+
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.venv/
+
+# ---------------------------------------------------------------------------
+# Runtime scratch. *.log is ignored, but the hardware scene set tracks its
+# SITL run logs under research/**/results/ as deliverables — negated back in.
+# Colcon's log dirs are already covered by the log*/ glob above.
+# ---------------------------------------------------------------------------
+*.pid
+*.log
+!research/**/results/**/*.log

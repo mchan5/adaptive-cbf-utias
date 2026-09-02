@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>synthetic_obstacle_publisher</name>
+  <version>0.1.0</version>
+  <description>Bench-test utility: publishes configurable static obstacles on /arc/obstacles as visualization_msgs/MarkerArray, matching the format cbf_obstacle_controller and cbf_rate_obstacle_controller expect. No dependency on PX4/SITL -- for bringing up CBF nodes against synthetic topics only.</description>
+  <maintainer email="matthew.chan0607@gmail.com">mchan5</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+  <depend>nav_msgs</depend>
+  <depend>visualization_msgs</depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

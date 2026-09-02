@@ -1,0 +1,14 @@
+{
+  "model": "Quadrotor3D_gat_pareto",
+  "alpha_cal": 0.95,
+  "raw_epistemic_threshold": 0.13429999351501465,
+  "cvar_boundary": 0.13231791928410563,
+  "risk_tie_eps": 1.4644599862792318,
+  "jrd_stats": {
+    "min": 0.00010156631469726562,
+    "max": 0.5661571025848389,
+    "mean": 0.03923176633040481,
+    "std": 0.0517289479639328,
+    "n_samples": 18868
+  }
+}

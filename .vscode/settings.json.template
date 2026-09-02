@@ -1,0 +1,19 @@
+// Template — copy to settings.json on each machine. settings.json itself is
+// gitignored, because its correct contents differ per device: the desktop and
+// laptop run ROS 2 Jazzy on Python 3.12, the Jetson runs Humble on Python 3.10.
+// Tracking the resolved paths made this file conflict on every pull.
+//
+//   cp .vscode/settings.json.template .vscode/settings.json
+//
+// scripts/setup.sh (added in P4) generates it with the distro and Python
+// version resolved for the machine it runs on.
+{
+    "python.analysis.extraPaths": [
+        "/opt/ros/${env:ROS_DISTRO}/lib/python3.12/site-packages",
+        "${workspaceFolder}/ros2_ws/install/px4_msgs/lib/python3.12/site-packages",
+        "${workspaceFolder}/ros2_ws/install/px4_ros_com/lib/python3.12/site-packages",
+        "${workspaceFolder}/ros2_ws/install/arc_cbf_node/lib/python3.12/site-packages",
+        "${workspaceFolder}/ros2_ws/install/arc_perception/lib/python3.12/site-packages"
+    ],
+    "python.defaultInterpreterPath": "/usr/bin/python3"
+}

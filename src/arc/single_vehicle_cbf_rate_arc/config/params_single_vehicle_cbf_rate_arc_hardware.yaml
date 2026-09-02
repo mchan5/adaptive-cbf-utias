@@ -1,0 +1,143 @@
+# Real-hardware parameter file for single_vehicle_cbf_rate_arc.
+#
+# Started as a copy of params_single_vehicle_cbf_rate_arc.yaml (the SITL/sim
+# file, which stays untouched). Every value below marked "TODO(hardware)"
+# is a Gazebo-x500-SITL-derived number that MUST be re-measured/re-derived
+# from the real vehicle before this file is trusted for flight -- do not fly
+# with the copied sim defaults still in place. Everything not marked is a
+# control-law gain, not a vehicle-model constant, and is a reasonable
+# starting point for bench testing, but expect to retune once real dynamics
+# (motor lag, real mass distribution, prop wash) are in the loop.
+
+/**/autopilot_sv_cbf_rate_node:
+  ros__parameters:
+    waypoint_x: 0.0
+    waypoint_y: 5.0
+    waypoint_z: 0.38
+
+    # TODO(hardware): real F450 mass, not the Gazebo gz_x500 SITL mass this
+    # was copied from (2.064kg -- see the sim yaml's own comment flagging
+    # this exact mistake). Weigh the actual vehicle as built (frame + battery
+    # + companion computer + mocap markers) before any flight.
+    vehicle_mass: 1.6
+
+    obs_d_min: 1.0
+    obs_safety_margin: 0.5
+
+    # TODO(hardware): qp_thrust_min is a hard QP bound (Newtons) -- must be
+    # re-derived from the real thrust bench test below, not left at the sim
+    # value. An overstated floor makes the QP infeasible near hover; an
+    # understated one lets it command less thrust than the vehicle can
+    # actually sustain.
+    qp_thrust_min: 4.7
+    qp_thrust_floor_gain: 8.0
+    qp_tau_min: -50.0
+    qp_tau_max: 50.0
+    qp_omega_max: 6.0
+    qp_rho: 1.0
+    control_rate_hz: 100.0
+
+    qp_slack_weight: 10000.0  # written unambiguously -- "1.0e4" parses as a
+                              # YAML string under safe_load, not a float. The
+                              # sim yaml had the same latent bug; now fixed
+                              # there too.
+    uncertified_v_cap_enabled: true  # start conservative on hardware; sim default is false
+    uncertified_v_cap: 0.5           # start conservative on hardware; sim default is 1.0
+
+    # TODO(hardware): thrust-curve constants. These convert commanded thrust
+    # (Newtons) to normalized PX4 actuator output and are specific to the
+    # real ESCs/motors/props/battery voltage -- re-derive from a static
+    # bench thrust test on the real hardware (see computeThrustMax() in
+    # single_vehicle_cbf_rate_client.cpp for how these two feed the T_max
+    # bound). Do not fly with the SITL x500 values still here.
+    vehicle_thrust_scaling: 0.08259793214
+    vehicle_idle_thrust: 0.2535571429
+    vehicle_num_rotors: 4
+
+    cbf_gamma_obs: 4.0
+
+    # Obstacle geometry model for the collision barrier. See the sim yaml's
+    # comment for the full sphere-vs-vertical-cylinder description.
+    #   false (default) -- sphere (full 3-D distance); the certified path,
+    #     matches every real flight to date.
+    #   true  -- vertical cylinder (horizontal distance only): the footprint
+    #     must be cleared at every altitude, overflying impossible. Only safe
+    #     when the real obstacles are genuinely floor-to-ceiling within the
+    #     flight altitude band. NOT yet flown -- SITL-rehearse first.
+    # Structural -- read once at node construction, not live-reloaded. Flip
+    # via the hardware launch arg `cbf_cylinder_barrier:=true` to A/B it.
+    cbf_cylinder_barrier: false
+
+    # Nominal (obstacle-free) controller gains + the infeasible-solve brake
+    # fallback. Copied from the sim yaml at its 2026-08-30 frozen values
+    # (authority (8,4,4)). These are control-law gains, not vehicle-model
+    # constants, so they are a valid bench starting point -- expect to retune
+    # once real motor lag / mass distribution / prop wash are in the loop.
+    # Listed explicitly rather than left to the C++ declare_parameter
+    # defaults so the deploy surface is complete and
+    # HARDWARE_COMMANDS_20260828.md's frozen-config grep actually finds them.
+    nom_accel_max: 8.0
+    nom_pos_kp: 4.0
+    nom_vel_kd: 4.0
+    nom_infeasible_brake_kv: 4.0           # emergency-brake gain; > cruise on purpose
+    nom_infeasible_brake_accel_max: 13.0   # must stay above nom_accel_max and under
+                                           # the x500's ~13.4 m/s^2 lateral ceiling
+
+    # Stall-triggered escape maneuver -- see the sim yaml for the full
+    # rationale (randomized-course stress testing, 2026-08-10). Starting
+    # point copied as-is; retune stall_speed_threshold and the escape
+    # accel/duration once real-hardware odometry noise floor is known --
+    # a noisier real velocity estimate may false-trigger stall detection
+    # more than the SITL ground-truth feed did.
+    stall_speed_threshold: 0.08  # m/s
+    stall_duration_sec: 2.5
+    escape_duration_sec: 2.5
+    escape_lateral_accel: 2.5  # m/s^2
+    escape_goal_pull_scale: 0.3
+    goal_arrival_tolerance: 0.3  # m
+
+    # PENN+GAT was trained against Gazebo-x500-derived dynamics (see
+    # penn_gat_training/). Leave disabled until its predictions have been
+    # spot-checked against real-hardware behavior (e.g. via
+    # penn_gamma_diagnostic) -- an untested model silently degrading gamma
+    # selection is worse than the fixed cbf_gamma_obs fallback above.
+    #
+    # 2026-08-22: penn_gamma_selector.cpp had 5 real bugs fixed the same
+    # day this file's values below were corrected (missing frame
+    # canonicalization, inverted risk-gate sign convention, wrong
+    # selection rule, a missing input feature that made PENN inference
+    # throw on every call since 2026-08-19, and a sign-flipped edge
+    # convention present since the port was first written) -- verified
+    # against the Python reference to 5-6 significant figures on one
+    # frozen state, NOT yet against a systematic parity sweep or any real
+    # hardware data. The "leave disabled" reasoning above is unaffected by
+    # today's fixes and still applies in full; if anything the case for
+    # caution is stronger now that a genuinely different code path than
+    # whatever was last flown is about to run.
+    penn_enabled: false
+    penn_fallback_step: 0.5  # end-of-selectGamma() ratchet fallback
+                             # (prev_gamma - step, floored at penn_gamma_min).
+                             # Matches the sim yaml; only bites once
+                             # penn_enabled flips true.
+    penn_model_path: "checkpoint/gat_penn_weights.pt"
+    penn_gamma_min: 0.5  # KNOWN RISK, kept deliberately -- see the sim yaml's
+                         # comment. gamma<=1.10 can deadlock (no hard
+                         # collision, but zero progress) under body-rate
+                         # dynamics in cluttered scenes; kept at 0.5 to match
+                         # what the checkpoint was actually validated
+                         # against, not because the risk is absent. Directly
+                         # relevant here: penn_enabled is false below, so
+                         # this floor doesn't matter until that flips --
+                         # revisit both together.
+    penn_gamma_max: 2.5  # was 10.0 -- see the sim yaml's comment
+    penn_gamma_steps: 20
+    penn_update_ticks: 10  # was 20 -- see the sim yaml's comment
+    penn_proximity_gate_m: 3.0  # UNVALIDATED -- see the sim yaml's comment
+    # epistemic_threshold / cvar_boundary / lcb_k: see the sim yaml's
+    # comment -- checkpoint-specific, not portable, re-run
+    # cccp_calibrate_drone.py + diag_lcb_cv.py (point-mass) and the
+    # closed-loop campaign sweep (body-rate) after every retrain.
+    epistemic_threshold: 0.106508
+    cvar_boundary: 0.0122
+    lcb_k: 0.25
+    deadlock_threshold: 5.0  # vestigial -- see the sim yaml's comment

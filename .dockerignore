@@ -1,0 +1,11 @@
+# The image bind-mounts the repo at run time and COPYs nothing, so this only
+# trims the build context sent to the daemon.
+.git
+build*/
+install*/
+log*/
+.venv/
+reference/
+research/penn_gat/results/
+**/__pycache__/
+*.pyc

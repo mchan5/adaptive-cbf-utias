@@ -1,0 +1,10 @@
+=== zspot start Mon Aug 31 08:51:57 AM EDT 2026  wpz=0.5 ===
+scene 00 fixed: {"log": "scene_00_fixed.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.033, "max_absx_corridor": 0.41, "max_absx_all": 0.41, "y_range": [0.25, 6.01], "infeasible_ticks": 0, "strong": true, "fail": []}
+scene 00 adaptive: {"log": "scene_00_adaptive.log", "ticks": 77, "reached": true, "t_goal": 4.0, "min_clear": 0.993, "max_absx_corridor": 0.64, "max_absx_all": 0.64, "y_range": [0.07, 6.0], "infeasible_ticks": 1, "strong": true, "fail": []}
+scene 13 fixed: {"log": "scene_13_fixed.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.476, "max_absx_corridor": 0.63, "max_absx_all": 0.63, "y_range": [0.01, 6.03], "infeasible_ticks": 0, "strong": true, "fail": []}
+scene 13 adaptive: {"log": "scene_13_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 1.267, "max_absx_corridor": 0.79, "max_absx_all": 0.79, "y_range": [0.01, 6.05], "infeasible_ticks": 0, "strong": true, "fail": []}
+scene 10 fixed: {"log": "scene_10_fixed.log", "ticks": 77, "reached": false, "t_goal": null, "min_clear": 0.831, "max_absx_corridor": 10.95, "max_absx_all": 13.15, "y_range": [0.07, 12.05], "infeasible_ticks": 0, "strong": false, "fail": ["not_reached", "veer(10.95)", "flyaway"]}
+scene 10 adaptive: {"log": "scene_10_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 0.775, "max_absx_corridor": 0.2, "max_absx_all": 0.2, "y_range": [-0.0, 6.12], "infeasible_ticks": 0, "strong": true, "fail": []}
+scene 19 fixed: {"log": "scene_19_fixed.log", "ticks": 77, "reached": true, "t_goal": 34.0, "min_clear": 0.787, "max_absx_corridor": 2.97, "max_absx_all": 2.97, "y_range": [0.01, 6.91], "infeasible_ticks": 0, "strong": false, "fail": ["veer(2.97)"]}
+scene 19 adaptive: {"log": "scene_19_adaptive.log", "ticks": 77, "reached": true, "t_goal": 17.0, "min_clear": 0.593, "max_absx_corridor": 7.58, "max_absx_all": 9.17, "y_range": [0.54, 13.22], "infeasible_ticks": 2, "strong": false, "fail": ["veer(7.58)", "flyaway"]}
+ZSPOT_DONE Mon Aug 31 09:05:03 AM EDT 2026

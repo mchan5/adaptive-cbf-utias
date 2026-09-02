@@ -1,0 +1,8 @@
+=== zprobe start Mon Aug 31 09:07:40 AM EDT 2026 ===
+z=1.2 fixed: z_flown=[-0.04,1.99]  {"log": "scene19_z1.2_fixed.log", "ticks": 77, "reached": true, "t_goal": 11.0, "min_clear": 0.839, "max_absx_corridor": 1.06, "max_absx_all": 1.06, "y_range": [0.05, 5.99], "infeasible_ticks": 0, "strong": true, "fail": []}
+z=1.2 adaptive: z_flown=[-0.03,1.21]  {"log": "scene19_z1.2_adaptive.log", "ticks": 77, "reached": true, "t_goal": 3.0, "min_clear": 0.83, "max_absx_corridor": 0.06, "max_absx_all": 0.1, "y_range": [-0.01, 6.09], "infeasible_ticks": 1, "strong": true, "fail": []}
+z=1.0 fixed: z_flown=[-0.09,1.54]  {"log": "scene19_z1.0_fixed.log", "ticks": 77, "reached": true, "t_goal": 20.0, "min_clear": 0.847, "max_absx_corridor": 0.93, "max_absx_all": 0.93, "y_range": [0.29, 6.87], "infeasible_ticks": 0, "strong": true, "fail": []}
+z=1.0 adaptive: z_flown=[0.05,1.01]  {"log": "scene19_z1.0_adaptive.log", "ticks": 77, "reached": true, "t_goal": 4.01, "min_clear": 0.871, "max_absx_corridor": 0.02, "max_absx_all": 0.28, "y_range": [0.07, 6.28], "infeasible_ticks": 0, "strong": true, "fail": []}
+z=0.8 fixed: z_flown=[-0.04,1.61]  {"log": "scene19_z0.8_fixed.log", "ticks": 77, "reached": true, "t_goal": 21.0, "min_clear": 0.816, "max_absx_corridor": 0.93, "max_absx_all": 0.93, "y_range": [-0.03, 6.4], "infeasible_ticks": 0, "strong": true, "fail": []}
+z=0.8 adaptive: z_flown=[0.04,0.81]  {"log": "scene19_z0.8_adaptive.log", "ticks": 77, "reached": true, "t_goal": 2.0, "min_clear": 0.99, "max_absx_corridor": 0.09, "max_absx_all": 0.29, "y_range": [0.01, 6.06], "infeasible_ticks": 1, "strong": true, "fail": []}
+ZPROBE_DONE Mon Aug 31 09:17:30 AM EDT 2026

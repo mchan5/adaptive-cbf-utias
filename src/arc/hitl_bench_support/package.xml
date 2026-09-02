@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>hitl_bench_support</name>
+  <version>0.1.0</version>
+  <description>Shadow-HITL bench: forward the SITL vehicle's body-rate commands to a real, props-off Pixhawk over the real serial uXRCE-DDS link so its motors spin with the simulated flight. Bench test only -- does not close the physics loop. Kept in its own package so it can never be pulled into a flight launch.</description>
+  <maintainer email="matthew.chan0607@gmail.com">mchan5</maintainer>
+  <license>MIT</license>
+
+  <depend>rclpy</depend>
+  <depend>std_msgs</depend>
+  <depend>px4_msgs</depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+
+  <!-- pytest only, so `colcon test` runs test/ with pytest instead of the
+       unittest fallback. Deliberately no ament_flake8, ament_pep257 or
+       ament_copyright: matches the sibling test_support packages. -->
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
