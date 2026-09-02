@@ -164,7 +164,13 @@ class LidarObstaclePublisherNode(Node):
                 throttle_duration_sec=2.0)
             return
 
-        points_sensor = pc2.read_points_numpy(msg, field_names=('x', 'y', 'z'), skip_nans=True)
+        # read_points (not read_points_numpy): Humble's read_points_numpy asserts a single
+        # datatype across ALL fields in the cloud, which a Livox PointCloud2 (float32 xyz +
+        # uint8 tag/line + float64 timestamp) violates. read_points builds a compound dtype
+        # from only the requested fields and is safe.
+        structured = pc2.read_points(msg, field_names=('x', 'y', 'z'), skip_nans=True)
+        points_sensor = np.column_stack(
+            (structured['x'], structured['y'], structured['z'])).astype(np.float64, copy=False)
         if points_sensor.shape[0] == 0:
             self._publish([], stamp)
             return
