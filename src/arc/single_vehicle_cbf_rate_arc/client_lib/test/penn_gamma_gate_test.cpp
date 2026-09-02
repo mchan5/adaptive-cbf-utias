@@ -1,17 +1,5 @@
-// Tier 0 unit test: RateAutopilotCore::pennSelectAlpha's proximity-gate
-// logic (penn_proximity_gate_m) -- guards against a silent regression of
-// the exact mechanism that made this project's within-episode gamma-
-// switching experiment unsafe on 2026-08-24 (see TESTING.md and
-// results/ history): switching gamma is only safe far from obstacles, and
-// the gate is what enforces that in the deployed selector. This is not a
-// hypothetical -- an earlier diagnostic harness that switched gamma
-// without respecting this gate produced real hard collisions.
-//
-// Loads the real deploy checkpoint (same convention as
-// penn_gamma_parity_check.cpp / penn_gamma_diagnostic.cpp / body_rate_
-// closed_loop_diag.cpp -- this project treats checkpoint-loading tools as
-// ordinary diagnostics, not something requiring a mock). Deterministic:
-// PENN inference is a pure function of fixed weights + input, no RNG.
+// Tier 0 unit test: RateAutopilotCore::pennSelectAlpha's proximity-gate logic
+// (penn_proximity_gate_m) -- guards against a silent regression of the exact mechanism that made …
 #include <cstdlib>
 #include <string>
 
@@ -56,11 +44,8 @@ RateAutopilotCore::Params basePennParams() {
   p.penn_gamma_steps = 20;
   p.penn_update_ticks = 1;  // re-select every tick so the test isn't cadence-flaky
   p.penn_proximity_gate_m = 3.0;
-  // Deliberately OUTSIDE [penn_gamma_min, penn_gamma_max] (1.3-8.0) -- makes
-  // the two test cases below unambiguous. If the fallback were inside the
-  // candidate range (e.g. 4.0, the actual deploy value), a gate bug that
-  // silently always falls back could still coincidentally land inside
-  // [1.3, 8.0] and pass the "within gate" test for the wrong reason.
+  // Deliberately OUTSIDE [penn_gamma_min, penn_gamma_max] (1.3-8.0) -- makes the two test cases
+  // below unambiguous.
   p.cbf_gamma_obs = 0.1;
   p.waypoint = Eigen::Vector3d(0.0, 5.5, 1.5);
   return p;
@@ -112,10 +97,8 @@ TEST(PennProximityGate, WithinGateSelectorRunsAndStaysInCandidateRange) {
   core.handleObstacles(oneObstacleAt(0.0, 1.5, 1.5, 1.0));
 
   const auto result = core.tick();
-  // Not asserting an exact learned value (that's a model-output regression
-  // test, not a gate-logic test) -- just that the selector actually ran
-  // and returned something inside its own declared candidate range, i.e.
-  // the gate did NOT short-circuit to the fixed fallback this time.
+  // Not asserting an exact learned value (that's a model-output regression test, not a gate-logic
+  // test) -- just that the selector actually ran and returned something inside its own declared …
   EXPECT_GE(result.gamma_used, p.penn_gamma_min);
   EXPECT_LE(result.gamma_used, p.penn_gamma_max);
 }

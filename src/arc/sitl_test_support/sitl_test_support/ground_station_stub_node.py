@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""SITL-only stand-in for the missing ground-station GUI.
-
-Publishes a fixed hold-position reference and enables the CBF blend, then
-arms the vehicle and switches it to offboard mode once single_vehicle_cbf's
-own OffboardControlMode heartbeat has had time to reach PX4. Scoped for
-bench/SITL testing only -- not a replacement for the real ground station.
-
-Goal sequencing (hover_first, default on): on the arm rising edge the stub
-first commands a hover directly above the arming point at hover_z, holds
-there until the vehicle has settled within hover_pos_tol for
-hover_settle_sec (or hover_timeout_sec elapses), and only then advances
-goal_waypoint to the mission waypoint. This gives every SITL run a clean
-takeoff-and-stabilise phase before it drives into the obstacle course,
-instead of climbing and translating toward the goal from the ground.
-"""
+"""SITL-only stand-in for the missing ground-station GUI."""
 
 import math
 
@@ -38,15 +24,9 @@ class GroundStationStubNode(Node):
         self.declare_parameter('arm_delay_sec', 5.0)
         self.declare_parameter('arm_retry_period_sec', 1.0)
         # publish_goal: when false, this node still auto-arms and publishes the
-        # PositionControllerReference/CBF_flag heartbeat, but does NOT publish
-        # goal_waypoint -- an external driver (the operator GUI) owns the goal.
-        # Without this, the stub's 10 Hz goal_waypoint publish overrides any
-        # slower external goal within one stub period. Default true keeps the
-        # standalone unattended-SITL behaviour the batch scripts rely on.
+        # PositionControllerReference/CBF_flag heartbeat, but does NOT publish goal_waypoint -- an …
         self.declare_parameter('publish_goal', True)
-        # hover_first: takeoff-and-stabilise phase before the mission goal.
-        # See module docstring. Disable (hover_first:=false) to restore the
-        # old "publish the mission waypoint from t=0" behaviour.
+        # hover_first: takeoff-and-stabilise phase before the mission goal. See module docstring.
         self.declare_parameter('hover_first', True)
         self.declare_parameter('hover_z', 1.5)
         self.declare_parameter('hover_pos_tol', 0.35)
@@ -72,27 +52,17 @@ class GroundStationStubNode(Node):
 
         self._ref_pub = self.create_publisher(
             PositionControllerReference, 'fsc_autopilot_ros2/position_controller/reference', flag_qos)
-        # goal_waypoint (PointStamped) -- since d29ee86 the CBF node holds
-        # its position on arm and only leaves it on a goal_waypoint message
-        # (single_vehicle_cbf_rate_client.cpp goalCallback). The stub
-        # predates that; without this publisher the vehicle arms and never
-        # flies the mission. Published every tick so it overrides the
-        # arm-time hold-in-place within one stub period.
+        # goal_waypoint (PointStamped) -- since d29ee86 the CBF node holds its position on arm and
+        # only leaves it on a goal_waypoint message (single_vehicle_cbf_rate_client.cpp …
         self._goal_pub = self.create_publisher(PointStamped, 'goal_waypoint', flag_qos)
         self._cbf_flag_pub = self.create_publisher(Bool, 'ground_station/CBF_flag', flag_qos)
         self._enu_flag_pub = self.create_publisher(Bool, 'ground_station/ENU_flag', flag_qos)
         self._vehicle_command_pub = self.create_publisher(VehicleCommand, 'fmu/in/vehicle_command', cmd_qos)
-        # The versioned suffix PX4's uxrce_dds_client publishes under has
-        # drifted across firmware builds (v1.17.0 published vehicle_status_v1,
-        # not _v4). As of 2026-09-01, PX4-Autopilot v1.15.4's dds_topics.yaml
-        # defines only the unversioned "vehicle_status" -- confirmed via
-        # `ros2 topic info -v` (both _v1 and _v4 have zero publishers on this
-        # build). Use the unversioned name; see px4_config/README.md's
-        # "vehicle_status_v1 vs v4" section.
+        # The versioned suffix PX4's uxrce_dds_client publishes under has drifted across firmware
+        # builds (v1.17.0 published vehicle_status_v1, not _v4).
         self.create_subscription(VehicleStatus, 'fmu/out/vehicle_status', self._on_vehicle_status, cmd_qos)
-        # Odometry (ENU, from px4_odom_bridge_node) -- only used to place the
-        # hover point above the arming spot and to detect that the vehicle
-        # has settled there before the mission goal is released.
+        # Odometry (ENU, from px4_odom_bridge_node) -- only used to place the hover point above the
+        # arming spot and to detect that the vehicle has settled there before the mission goal is …
         self.create_subscription(
             Odometry, 'state_estimator/local_position/odom', self._on_odom, odom_qos)
 
@@ -100,9 +70,9 @@ class GroundStationStubNode(Node):
         self._last_arm_attempt = None
         self._start_time = self.get_clock().now()
 
-        self._pos = None  # (x, y, z) ENU, latest odom
-        # Goal phase: 'pre_arm' -> 'hover' -> 'mission'. 'hover' is skipped
-        # entirely when hover_first is false.
+        self._pos = None
+        # (x, y, z) ENU, latest odom Goal phase: 'pre_arm' -> 'hover' -> 'mission'. 'hover' is
+        # skipped entirely when hover_first is false.
         self._phase = 'pre_arm'
         self._hover_xy = None       # captured from odom on the arm rising edge
         self._hover_start = None    # clock time the hover phase began

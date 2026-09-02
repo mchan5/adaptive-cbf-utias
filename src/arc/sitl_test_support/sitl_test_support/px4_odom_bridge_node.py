@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""SITL-only stand-in for fsc_drone_state_estimator_ros2.
-
-Republishes PX4's own SITL odometry (fmu/out/vehicle_odometry, NED) as
-nav_msgs/Odometry on state_estimator/local_position/odom in ENU, which is
-what single_vehicle_cbf_client and cbf_obstacle_node expect. Not a
-substitute for a real mocap/estimator bridge -- for bench/SITL testing only.
-"""
+"""SITL-only stand-in for fsc_drone_state_estimator_ros2."""
 
 import rclpy
 from rclpy.node import Node

@@ -1,14 +1,6 @@
 #!/usr/bin/env bash
-# Tier 4b (TESTING.md): isolates the arming/infeasible-braking recovery
-# transient found 2026-08-24 (every authority level has the same benign
-# QP-infeasible tick right after arming; what changes with authority is how
-# violently the RECOVERY from it overshoots). Obstacle-free scenes, short
-# (~12s, not 75s) window -- the transient resolves or doesn't within the
-# first few seconds, no goal/obstacle needed to observe it.
-#
-# Sweeps nom_accel_max/nom_pos_kp/nom_vel_kd by editing the deploy YAML
-# between batches (same pattern the 2026-08-24 bisection scripts used),
-# running N cycles per authority level.
+# Tier 4b (TESTING.md): isolates the arming/infeasible-braking recovery transient found 2026-08-24
+# (every authority level has the same benign QP-infeasible tick right after arming; what changes …
 set -o pipefail
 
 REPO=/home/matt/arc_2026/control-barrier-functions-arc
@@ -25,15 +17,8 @@ source /opt/ros/*/setup.bash 2>/dev/null
 source /home/matt/arc_2026/ros2_ws/install/setup.bash 2>/dev/null
 
 cleanup() {
-  # 2026-08-24 fix: the original 3-pattern cleanup (still below) missed the
-  # ROS2-launched node processes entirely -- when a launch is torn down via
-  # SIGKILL (not a clean timeout exit), those never get a chance to shut
-  # down and are orphaned, invisible to every SUBSEQUENT launch's own
-  # process tree. Found via a synthetic_obstacle_publisher instance that
-  # had been running since the session's very first (SIGKILL'd) launch,
-  # silently feeding stale obstacle data into every later SITL episode's
-  # /arc/obstacles topic alongside each new episode's real publisher. See
-  # TESTING.md's Tier 4 section for the full incident.
+  # 2026-08-24 fix: the original 3-pattern cleanup (still below) missed the ROS2-launched node
+  # processes entirely -- when a launch is torn down via SIGKILL (not a clean timeout exit), those …
   pkill -9 -f 'synthetic_obstacle_publisher' 2>/dev/null
   pkill -9 -f 'autopilot_sv_cbf_rate_node' 2>/dev/null
   pkill -9 -f 'ground_station_stub_node' 2>/dev/null

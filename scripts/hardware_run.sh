@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
-# Source this (don't execute it) in every terminal for a hardware campaign:
-#   source scripts/hardware_run.sh
-# It sets campaign variables, activates the venv, and sources the workspace.
-# Per-machine values (Motive IP, FMU serial) come from .arc-local.env — run
-# scripts/setup.sh once first.
+# Source this (not execute) in every hardware-campaign terminal: sets campaign vars, activates the
+# venv, sources the workspace. Per-machine values come from .arc-local.env (run scripts/setup.sh).
 
 _hr_src="${BASH_SOURCE[0]:-$0}"
 export ARC_ROOT="$(cd "$(dirname "$_hr_src")/.." && pwd)"
@@ -21,9 +18,6 @@ export CAMPAIGN_DIR="${CAMPAIGN_DIR:-$ARC_ROOT/research/penn_gat/results/hardwar
 export HW_YAML="$ARC_ROOT/src/arc/single_vehicle_cbf_rate_arc/config/params_single_vehicle_cbf_rate_arc_hardware.yaml"
 mkdir -p "$CAMPAIGN_DIR/bags" "$CAMPAIGN_DIR/logs"
 
-# Runtime helper (not a build script) — activate the venv so any python node
-# that imports torch works. Build with scripts/build.sh, which deliberately
-# does NOT activate it (activation breaks rosidl msg-gen on a clean build).
 [ -f "$ARC_ROOT/.venv/bin/activate" ] && source "$ARC_ROOT/.venv/bin/activate"
 for d in "${ROS_DISTRO_EXPECTED:-}" humble jazzy; do
   [ -n "$d" ] && [ -f "/opt/ros/$d/setup.bash" ] && { source "/opt/ros/$d/setup.bash"; break; }

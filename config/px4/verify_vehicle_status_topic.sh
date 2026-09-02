@@ -1,21 +1,6 @@
 #!/usr/bin/env bash
-# Run this once MicroXRCEAgent is bridging the REAL Pixhawk (not SITL),
-# before trusting single_vehicle_cbf_rate_arc or operator_arm_node's
-# vehicle_status subscriptions.
-#
-# The versioned suffix PX4's uxrce_dds_client publishes vehicle_status under
-# has drifted twice already: SITL PX4 v1.17.0 published vehicle_status_v1
-# (not _v4); SITL PX4 v1.15.4 (as of 2026-09-01) publishes only the
-# unversioned "vehicle_status" (both _v1 and _v4 have zero publishers). This
-# has already caused a silent failure -- armed_ never updates and the real
-# rate-setpoint publish, gated on armed_, never fires -- so don't assume the
-# real Pixhawk's firmware build matches whatever SITL last published; check
-# it directly.
-#
-# Usage:
-#   source /opt/ros/humble/setup.bash
-#   source <your_ws>/install/setup.bash
-#   ./verify_vehicle_status_topic.sh
+# Run this once MicroXRCEAgent is bridging the REAL Pixhawk (not SITL), before trusting
+# single_vehicle_cbf_rate_arc or operator_arm_node's vehicle_status subscriptions.
 
 set -euo pipefail
 

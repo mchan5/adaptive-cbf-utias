@@ -1,27 +1,4 @@
-"""SITL vs hardware parameter-file parity.
-
-The sim (`params_single_vehicle_cbf_rate_arc.yaml`) and hardware
-(`..._hardware.yaml`) parameter files are meant to differ ONLY in a small,
-explicit set of regime-specific values -- vehicle model, venue geometry,
-conservatism, and PENN calibration. Everything else (control-law gains, QP
-bounds, the nominal controller, the infeasible-brake fallback) must be
-identical so a SITL rehearsal actually exercises the config that ships on
-hardware.
-
-This test pins that contract:
-
-  * both files expose the SAME set of parameter keys (a key present in one
-    and absent from the other silently falls back to the C++
-    declare_parameter default on the side that omits it -- exactly the
-    'frozen config' drift HARDWARE_COMMANDS_20260828.md tries to grep for);
-  * every value is a real scalar, not a string (guards the 1.0e4 ->
-    string-under-safe_load foot-gun);
-  * every key NOT in the allow-to-differ list holds an equal value in both
-    files.
-
-If you deliberately introduce a new regime difference, add the key to
-ALLOWED_TO_DIFFER below with a one-line reason. That edit is the record.
-"""
+"""SITL vs hardware parameter-file parity."""
 
 import math
 import os

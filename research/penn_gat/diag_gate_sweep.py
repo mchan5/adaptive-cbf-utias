@@ -1,33 +1,5 @@
-"""
-diag_gate_sweep.py
-
-diag_minh_head.py established that the risk head predicts min_h well
-(corr +0.991, RMSE 0.173, bias +0.006) but that the decision boundary lives
-inside its noise floor: truly-unsafe candidates sit at a mean true min_h of
--0.073, ~2.4x smaller than the head's own error, so 37.8% of them are
-predicted safe and pass the gate. The epistemic gate was exonerated in the
-same run (5.3% rejection; killed a safe candidate in 2/667 queries).
-
-That diagnosis implies the fix is a THRESHOLD change, not a retrain. Two
-candidate knobs, swept here against real episode outcomes:
-
-  risk_margin -- require predicted min_h > cvar_boundary + margin. Pushes
-                 the decision point out of the noise floor by brute force.
-  lcb_k       -- gate on mu - k*sqrt(var_aleatoric + var_epistemic) instead
-                 of the ensemble mean. The deployed rule currently discards
-                 sigma entirely, so the PENN's predictive-variance head is
-                 trained and then ignored at selection time; this turns it
-                 back on. Should dominate a flat margin IF the head's
-                 uncertainty is genuinely state-dependent (tight where it's
-                 confident, wide near the boundary) rather than
-                 homoscedastic -- cccp_calibrate_drone.py's risk-noise print
-                 has hinted at near-constant sigma before, so this is a real
-                 open question, not a foregone win.
-
-Reports margin-violation rate AND hard-collision rate AND time-when-safe for
-each setting, so the safety/speed trade is visible rather than collapsed
-into one scalar (Phase 1 discipline -- see the redesign plan).
-"""
+"""diag_minh_head.py established that the risk head predicts min_h well (corr +0.991, RMSE 0.173,
+bias +0.006) but that the decision boundary lives inside its noise floor: truly-unsafe …"""
 import numpy as np
 
 import eval_scene_distribution as E

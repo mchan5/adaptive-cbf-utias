@@ -1,13 +1,6 @@
 #!/usr/bin/env bash
-# Fast regression fixture for the QP-infeasibility braking fix
-# (rate_autopilot_core.cpp, 2026-08-23). Pins the exact reproducer found
-# during the range-widening investigation: seed 20260921, scenes 25 and 26
-# of closed_loop_calibration_dense_20260823/ -- both hard-collided under the
-# old "coast, don't brake" fallback and must clear (min_h_physical >= 0)
-# under the fix. Runs in a few seconds; the full seeded campaign is the
-# real safety gate, this is a cheap early check before investing in that.
-#
-# Usage: regression_check_infeasible_brake.sh [penn_model_path]
+# Fast regression fixture for the QP-infeasibility braking fix (rate_autopilot_core.cpp,
+# 2026-08-23).
 
 set -euo pipefail
 

@@ -11,9 +11,7 @@ from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from ament_index_python.packages import get_package_share_directory
 
-# (x, y, z, diameter) groups. "slalom" matches cbf_sitl_test_launch.py's
-# accel-level course; the others are cut-down scenes for isolating the
-# rate-level nominal controller/PENN-gamma behavior from obstacle-avoidance.
+# (x, y, z, diameter) groups.
 OBSTACLE_SCENES = {
     "none": [],
     "one": [0.0, 2.5, 1.5, 1.0],
@@ -36,10 +34,8 @@ OBSTACLE_SCENES = {
     ],
 }
 
-# No hardcoded machine-specific defaults here -- leave micro_xrce_agent_src_dir
-# and px4_src_dir undeclared-default so single_drone_sitl_launch.py's own
-# MICRO_XRCE_AGENT_SRC_DIR/PX4_SRC_DIR (env var, falling back to
-# $HOME/src/...) resolution is what actually takes effect.
+# No hardcoded machine-specific defaults here -- leave micro_xrce_agent_src_dir and px4_src_dir
+# undeclared-default so single_drone_sitl_launch.py's own MICRO_XRCE_AGENT_SRC_DIR/PX4_SRC_DIR …
 _default_base = os.environ.get("HOME", os.curdir)
 _MICRO_XRCE_AGENT_SRC_DIR_DEFAULT = os.environ.get(
     "MICRO_XRCE_AGENT_SRC_DIR", os.path.join(_default_base, "src", "Micro-XRCE-DDS-Agent"))
@@ -56,10 +52,8 @@ def _sensing_envelope():
 
 
 def _launch_obstacle_publisher(context, *args, **kwargs):
-    # obstacle_source is accepted for argument-parity with
-    # cbf_rate_arc_hardware_launch.py so the operator GUI can pass the same
-    # vocabulary to either regime. SITL only supports the synthetic source --
-    # there is no simulated LiDAR feed in the gz_x500 world.
+    # obstacle_source is accepted for argument-parity with cbf_rate_arc_hardware_launch.py so the
+    # operator GUI can pass the same vocabulary to either regime.
     source = LaunchConfiguration("obstacle_source").perform(context)
     if source == "lidar":
         raise RuntimeError(
@@ -68,9 +62,8 @@ def _launch_obstacle_publisher(context, *args, **kwargs):
     if source != "manual":
         raise RuntimeError(f"Unknown obstacle_source '{source}', expected 'manual' or 'lidar'")
 
-    # obstacle_file (a JSON list of floats) overrides obstacle_scene when set --
-    # lets automated/randomized trials supply obstacles without editing this
-    # file's OBSTACLE_SCENES per run.
+    # obstacle_file (a JSON list of floats) overrides obstacle_scene when set -- lets
+    # automated/randomized trials supply obstacles without editing this file's OBSTACLE_SCENES per …
     obstacle_file = LaunchConfiguration("obstacle_file").perform(context)
     if obstacle_file:
         with open(obstacle_file) as f:
@@ -102,18 +95,7 @@ def _launch_obstacle_publisher(context, *args, **kwargs):
 
 
 def _launch_arm_node(context, *args, **kwargs):
-    """Select the arming driver, matching cbf_rate_arc_hardware_launch.py.
-
-      arm_mode:=auto     -> ground_station_stub_node (sitl_test_support):
-                            auto-arms ~5 s after launch and retries until
-                            armed. The unattended-batch default.
-      arm_mode:=operator -> operator_arm_node (hardware_test_support): arms
-                            only on a rising edge of operator/arm_confirm.
-                            This is the path the operator GUI drives, and it
-                            is byte-for-byte the same node the hardware
-                            launch uses -- so a GUI SITL run exercises the
-                            real arming handshake, not a sim-only shortcut.
-    """
+    """Select the arming driver, matching cbf_rate_arc_hardware_launch.py."""
     arm_mode = LaunchConfiguration("arm_mode").perform(context)
     uav_prefix = LaunchConfiguration("uav_prefix")
 
@@ -187,9 +169,8 @@ def generate_launch_description():
         namespace=uav_prefix,
     )
 
-    # /arc/obstacles is a MarkerArray only -- synthetic_obstacle_publisher never
-    # spawns anything into the Gazebo world itself, so RViz is the only way to
-    # see what the CBF node is actually reasoning about.
+    # /arc/obstacles is a MarkerArray only -- synthetic_obstacle_publisher never spawns anything
+    # into the Gazebo world itself, so RViz is the only way to see what the CBF node is actually …
     rviz = Node(
         package="rviz2",
         executable="rviz2",
@@ -250,11 +231,7 @@ def generate_launch_description():
             description="Path to a JSON file containing a flat [x,y,z,diameter,...] "
                          "obstacle list. Overrides obstacle_scene when non-empty.",
         ),
-        # Goal waypoint. Defaults to the standard (0, 5.5, 1.5) obstacle
-        # course endpoint; a Tier 4b arming-transient run sets this to the
-        # spawn point (0, 0, 1.5) so the drone hovers in place and any
-        # departure from origin is the recovery-transient overshoot, not
-        # goal-seeking.
+        # Goal waypoint.
         DeclareLaunchArgument(
             "cbf_cylinder_barrier",
             default_value="",
@@ -265,9 +242,6 @@ def generate_launch_description():
         DeclareLaunchArgument("waypoint_x", default_value="0.0"),
         DeclareLaunchArgument("waypoint_y", default_value="5.5"),
         DeclareLaunchArgument("waypoint_z", default_value="1.5"),
-        # argument parity with cbf_rate_arc_hardware_launch.py
-        # These let the operator GUI (and anyone else) drive SITL and hardware
-        # with one launch-arg vocabulary.
         DeclareLaunchArgument(
             "obstacle_source",
             default_value="manual",

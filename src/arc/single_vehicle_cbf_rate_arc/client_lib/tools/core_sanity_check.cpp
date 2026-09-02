@@ -1,9 +1,5 @@
 // Standalone regression check for RateAutopilotCore, run after the
-// rate_autopilot_core/single_vehicle_cbf_rate_client split (see
-// client_lib/CMakeLists.txt) to catch behavioral drift from that refactor --
-// not exhaustive, just enough to confirm the extracted core still produces
-// physically sane output for a couple of textbook scenarios. No ROS init
-// required (rclcpp::Logger/Clock work standalone).
+// rate_autopilot_core/single_vehicle_cbf_rate_client split (see client_lib/CMakeLists.txt) to …
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>

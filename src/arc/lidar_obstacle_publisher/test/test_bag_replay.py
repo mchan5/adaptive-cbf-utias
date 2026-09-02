@@ -1,18 +1,5 @@
-"""Replay a recorded bench bag through LidarObstaclePublisherNode and check
-the detections against hand-measured ground truth.
-
-This is the integration test SITL can't be -- it exercises the real
-sensor->world transform, voxel clustering, and ID tracker against actual
-Livox point clouds. It is inert until someone records data:
-
-  * fixtures/bench_replay.yaml ships with bag_path: null  -> the test SKIPS
-  * after a bench session (see fixtures/README.md) bag_path points at a
-    rosbag2 directory and the obstacle centres are filled in -> it RUNS
-
-Runs as plain pytest (no ROS graph / executor): bag messages are fed straight
-into the node's callbacks in recorded order, and the MarkerArray the node
-would publish is captured via a stub publisher.
-"""
+"""Replay a recorded bench bag through LidarObstaclePublisherNode and check the detections
+against hand-measured ground truth."""
 
 import os
 

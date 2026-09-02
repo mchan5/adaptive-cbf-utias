@@ -1,16 +1,4 @@
-"""Offline smoke test for hitl_rate_echo_node -- no Pixhawk, no SITL.
-
-Spins the echo node plus a harness node in one process and checks the four
-parts of its safety contract:
-
-  * gate    -- nothing is forwarded until bench_enable goes true
-  * restamp -- the forwarded timestamp is this machine's wall clock, not the
-               sim timestamp that came in
-  * clamp   -- normalised thrust magnitude is capped at thrust_clamp_norm
-  * deadman -- when the sim rate stream stops, a zero-rate hold is published
-
-Run:  python3 -m pytest hitl_bench_support/test/test_rate_echo_smoke.py -v
-"""
+"""Offline smoke test for hitl_rate_echo_node -- no Pixhawk, no SITL."""
 
 import time
 

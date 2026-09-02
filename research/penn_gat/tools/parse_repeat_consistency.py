@@ -1,26 +1,5 @@
-"""
-parse_repeat_consistency.py
-
-Quantifies run-to-run path spread across N repeats of the SAME SITL scene
-(produced by run_sitl_repeat_battery.sh), to measure whether the
-measured-dt fix (rate_autopilot_core.cpp/single_vehicle_cbf_rate_client.cpp)
-actually reduces trial-to-trial inconsistency, rather than eyeballing it.
-
-Reuses parse_sitl_results.py's own parse_log() (same log format: one
-"pos=[x y z] ... feasible=N" line per logged tick, ~1s granularity) instead
-of re-implementing the regex.
-
-Usage:
-    python parse_repeat_consistency.py <runs_dir> <tag>
-
-    runs_dir: directory of "<tag>_rep_NN.log" files (run_sitl_repeat_battery.sh's
-              output layout)
-    tag:      "before" or "after" (whatever TAG was passed to the battery script)
-
-Prints, per aligned tick index across the N repeats, the max pairwise
-Euclidean spread between positions, plus a single summary: the max spread
-over all tick indices, and the spread in final position / time-to-goal.
-"""
+"""Quantifies run-to-run path spread across N repeats of the SAME SITL scene (produced by
+run_sitl_repeat_battery.sh), to measure whether the measured-dt fix …"""
 import math
 import os
 import re

@@ -19,9 +19,8 @@ ObstacleRegistry::RegisterResult ObstacleRegistry::registerAndCheck(
     out.certified = true;  // already certified under the CURRENTLY active gamma
     return out;
   }
-  // Either never certified, or gamma has changed since it last was --
-  // re-evaluate under the CURRENT g1_/g2_ before trusting it as a hard,
-  // zero-slack QP constraint again.
+  // Either never certified, or gamma has changed since it last was -- re-evaluate under the CURRENT
+  // g1_/g2_ before trusting it as a hard, zero-slack QP constraint again.
   const CertificationResult cert =
       isEntryCertified(state, p_obs, d_min, g1_, g2_, m_, cylinder_mode_);
   out.certified = cert.certified;

@@ -1,90 +1,5 @@
 #!/usr/bin/env python3
-"""LiDAR-informed obstacle detection: PointCloud2 -> /arc/obstacles.
-
-This is option 2 of "how obstacles get into /arc/obstacles" -- option 1 is
-hand-measured positions via synthetic_obstacle_publisher fed an obstacle_file
-(see cbf_rate_arc_hardware_launch.py's obstacle_source launch arg, which
-selects between the two). Both publish the exact same
-visualization_msgs/MarkerArray contract synthetic_obstacle_publisher already
-uses (marker.pose.position = centroid, marker.scale.x = diameter,
-marker.id = a stable per-obstacle id) -- single_vehicle_cbf_rate_arc's
-obstaclesCallback() does not know or care which one is running.
-
-Pipeline per point cloud: range/self filter -> transform sensor frame to
-world/ENU using the latest state_estimator/local_position/odom pose -> world
-z-band filter -> voxel-grid downsample -> connected-component clustering over
-occupied voxels -> per-cluster centroid/radius -> greedy nearest-centroid ID
-association against the previous frame's clusters (tracker.py), so a physical
-obstacle keeps the same marker.id across frames.
-
-/arc/obstacles is published exactly once per input cloud (no decoupled
-timer): output rate follows the sensor, and a stalled LiDAR/driver shows up
-as the topic going silent rather than as stale markers restamped "now".
-
-Driver: Livox-SDK/livox_ros_driver2, vendored and build-verified against
-ROS2 Humble at ros2_ws/src/livox_ros_driver2 (needs Livox-SDK2, also
-vendored+built at $HOME/src/Livox-SDK2 and installed to $HOME/.local -- no
-sudo/system install required, see that build's CMAKE_PREFIX_PATH). Target
-unit: Livox Mid-360S (https://www.livoxtech.com/mid-360s), using the
-driver's own MID360s_config.json / msg_MID360s_launch.py (a distinct
-variant from the plain MID360_config.json -- the driver repo treats "S" as
-its own product).
-
-Confirmed by reading the driver source (not guessed):
-  - xfer_format lives in launch_ROS2/msg_MID360s_launch.py (a Python
-    variable, NOT in the json config, despite what an earlier version of
-    this comment claimed), and has been changed from upstream's default of
-    1 (custom livox_ros_driver2/msg/CustomMsg) to 0 (sensor_msgs/PointCloud2
-    with PointXYZRTL fields -- an actual sensor_msgs/PointCloud2, this node
-    just ignores the extra reflectivity/tag/line/timestamp fields beyond
-    x/y/z). Only switch back to CustomMsg if something later needs that
-    per-point data (e.g. LIO using the unit's built-in IMU).
-  - The driver publishes on the relative topic "livox/lidar"
-    (src/lddc.cpp), which resolves to the absolute /livox/lidar when
-    launched unnamespaced (msg_MID360s_launch.py's Node has no namespace
-    set) -- matching this repo's lidar_pointcloud_topic default already.
-  - Data interface is Ethernet/UDP, not something else -- MID360s_config.json
-    has host_net_info (this machine's IP + 5 UDP ports) and lidar_configs[0].ip
-    (the sensor's factory-default IP, typically on the 192.168.1.x subnet).
-    Both must be set to match your actual network before the driver will see
-    the unit; the checked-in defaults are the Livox factory defaults, not
-    validated against a specific network.
-  - MID360s_config.json also has its own lidar_configs[0].extrinsic_parameter
-    (roll/pitch/yaw/x/y/z) -- i.e. the driver itself can apply the sensor-to-body
-    mount offset before publishing. Pick ONE place to apply it, not both: either
-    that json field, or this node's sensor_offset_xyz/sensor_offset_rpy_deg
-    params below, left at zero in the other. This repo defaults to doing it
-    here (Python, no rebuild needed to retune).
-
-Still unverified (wasn't on the livoxtech.com product page, wasn't needed to
-get the driver building, and matters for wiring, not code): exact power input
-voltage/wattage. Check the datasheet before wiring power to it.
-
-Per Livox's published spec: 360 deg horizontal x 59 deg vertical FOV
-(markedly asymmetric upward if mounted flat -- good for wall/pole-height
-obstacles, worse for anything low right under the vehicle), ranging
-accuracy not guaranteed under 0.2m (hence min_range_m's default), up to
-40m detection range at 10% reflectivity (max_range_m defaults to a much
-tighter 8m here since that's plenty for an indoor test volume and keeps
-the point count/clustering cost down -- raise it if you actually need the
-range).
-
-Deliberately simple clustering (voxel connected-components, not a
-statistical/learned detector): correct and easy to reason about, but tune
-voxel_size_m / min_cluster_points / z_min / z_max / max_range_m for your
-actual sensor and environment before trusting it, and expect false positives
-from propwash-kicked debris or reflective surfaces that a fancier pipeline
-would reject.
-
-The shared sensing-envelope parameters (max_range_m, z_min_m, z_max_m,
-max_obstacle_radius_m) are set for every launch path from
-single_vehicle_cbf_rate_arc/config/obstacle_sensing_envelope.yaml, so this
-node and synthetic_obstacle_publisher present the CBF node with the same
-conditions. max_obstacle_radius_m defaults to 0.5 m there
-(obs_d_min - obs_safety_margin): the CBF-QP collision constraint uses one
-shared obs_d_min for all obstacles, so a cluster reported larger than that
-would be under-cleared.
-"""
+"""LiDAR-informed obstacle detection: PointCloud2 -> /arc/obstacles."""
 
 import numpy as np
 import rclpy
@@ -178,11 +93,8 @@ class LidarObstaclePublisherNode(Node):
         self.declare_parameter('frame_id', 'map')
 
         self.declare_parameter('min_range_m', 0.2)
-        # max_range_m / z_min_m / z_max_m / max_obstacle_radius_m below are the
-        # shared "sensing envelope" -- every launch path overrides these from
-        # single_vehicle_cbf_rate_arc/config/obstacle_sensing_envelope.yaml so
-        # this node and synthetic_obstacle_publisher agree. These defaults only
-        # apply to a bare `ros2 run lidar_obstacle_publisher ...`.
+        # max_range_m / z_min_m / z_max_m / max_obstacle_radius_m below are the shared "sensing
+        # envelope" -- every launch path overrides these from …
         self.declare_parameter('max_range_m', 8.0)
         self.declare_parameter('z_min_m', 0.1)   # world-frame obstacle band -- excludes
         self.declare_parameter('z_max_m', 2.5)   # floor returns and ceiling/overhead clutter
@@ -190,16 +102,12 @@ class LidarObstaclePublisherNode(Node):
         self.declare_parameter('voxel_size_m', 0.15)
         self.declare_parameter('min_cluster_points', 8)
         self.declare_parameter('min_obstacle_diameter_m', 0.2)
-        # 0.5 == obs_d_min - obs_safety_margin: the CBF-QP clears every obstacle
-        # to a single shared obs_d_min, so a cluster reported larger than this
-        # would be under-cleared. See obstacle_sensing_envelope.yaml.
+        # 0.5 == obs_d_min - obs_safety_margin: the CBF-QP clears every obstacle to a single shared
+        # obs_d_min, so a cluster reported larger than this would be under-cleared.
         self.declare_parameter('max_obstacle_radius_m', 0.5)
         self.declare_parameter('max_obstacles', 20)
         self.declare_parameter('tracking_max_jump_m', 0.5)
 
-        # Static sensor-in-body-frame mount transform -- MUST be measured for
-        # your actual mount, defaults are "sensor at body origin, aligned
-        # with body FLU axes" which is almost certainly wrong.
         self.declare_parameter('sensor_offset_xyz', [0.0, 0.0, 0.0])
         self.declare_parameter('sensor_offset_rpy_deg', [0.0, 0.0, 0.0])
 
@@ -247,10 +155,7 @@ class LidarObstaclePublisherNode(Node):
         self._odom_valid = True
 
     def _on_pointcloud(self, msg: PointCloud2):
-        # One publish per input cloud -- no separate timer. A stalled LiDAR /
-        # driver therefore shows up directly as /arc/obstacles going silent
-        # (visible on `ros2 topic hz` and the experiment GUI), instead of a
-        # timer re-emitting the last markers with fresh timestamps forever.
+        # One publish per input cloud -- no separate timer.
         stamp = msg.header.stamp
 
         if not self._odom_valid:

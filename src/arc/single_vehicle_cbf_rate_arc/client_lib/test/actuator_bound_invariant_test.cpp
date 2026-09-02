@@ -1,16 +1,5 @@
-// Tier 0 unit test: no matter how aggressively nom_accel_max/nom_pos_kp/
-// nom_vel_kd are configured, the QP's OWN actuator bounds (T in
-// [T_min,T_max], |omega|<=qp_omega_max) must never be violated -- the
-// nominal PD law is a target the QP tracks, not a hard output, but a
-// regression here would mean the norm-clamp/QP formulation stopped doing
-// its job. Directly motivated by the 2026-08-24 authority-bisection
-// session, where nom_accel_max=14.0 turned out to exceed the vehicle's
-// documented ~13.4 m/s^2 physical lateral ceiling (see
-// config/params_single_vehicle_cbf_rate_arc.yaml's nom_accel_max history)
-// -- the QP's hard bounds are what actually protects the vehicle once the
-// nominal law's own ceiling stops being physically meaningful, so this
-// specific invariant is worth a standing regression test, not just a
-// one-off SITL finding.
+// Tier 0 unit test: no matter how aggressively nom_accel_max/nom_pos_kp/ nom_vel_kd are configured,
+// the QP's OWN actuator bounds (T in [T_min,T_max], |omega|<=qp_omega_max) must never be violated …
 #include <gtest/gtest.h>
 
 #include "single_vehicle_cbf_rate/rate_autopilot_core.hpp"
@@ -40,10 +29,8 @@ RateAutopilotCore::Params extremeAuthorityParams() {
   p.penn_enabled = false;
   p.waypoint = Eigen::Vector3d(0.0, 5.5, 1.5);
 
-  // Deliberately far past the vehicle's real physical ceiling (~13.4
-  // m/s^2) -- the point of this test is that the QP's hard bounds must
-  // still hold even when the nominal law's own ceiling is not physically
-  // meaningful, not that this is a sane deploy config.
+  // Deliberately far past the vehicle's real physical ceiling (~13.4 m/s^2) -- the point of this
+  // test is that the QP's hard bounds must still hold even when the nominal law's own ceiling is …
   p.nom_accel_max = 100.0;
   p.nom_pos_kp = 50.0;
   p.nom_vel_kd = 50.0;
@@ -58,9 +45,8 @@ TEST(ActuatorBoundInvariant, ExtremeNominalAuthorityStaysWithinQpBounds) {
   RateAutopilotCore::Params p = extremeAuthorityParams();
   RateAutopilotCore core(p, logger, clock);
 
-  // Large displacement -- exactly the condition that produces the biggest
-  // nominal-law command, and therefore the case most likely to expose a
-  // clamp/QP-formulation regression.
+  // Large displacement -- exactly the condition that produces the biggest nominal-law command, and
+  // therefore the case most likely to expose a clamp/QP-formulation regression.
   const Eigen::Vector3d far_away(0.0, -20.0, 1.5);
   core.setOdometry(far_away, Eigen::Vector3d::Zero(), Eigen::Matrix3d::Identity(), clock->now());
 

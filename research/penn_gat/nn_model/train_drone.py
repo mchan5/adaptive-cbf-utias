@@ -1,11 +1,5 @@
-"""
-train_drone.py — PENN+GAT training for the quadrotor CBF.
-
-Run from the nn_model/ directory:
-    python train_drone.py
-
-Output: checkpoint/Quadrotor3D_gat.pth
-"""
+"""PENN+GAT training for the quadrotor CBF. Run from the nn_model/ directory: python
+train_drone.py Output: checkpoint/Quadrotor3D_gat.pth"""
 
 import os
 import sys
@@ -24,11 +18,8 @@ from penn.nn_gat_iccbf_predict import ProbabilisticEnsembleGAT
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-# PICKLE_FILE/MODEL_NAME env overrides added 2026-08-23 for the
-# range-widening retrain, so a candidate checkpoint can be trained and gated
-# (aleatoric calibration, headline re-verification, closed-loop campaign)
-# without touching the currently-frozen Quadrotor3D_gat.pth until it's
-# actually decided to be an improvement. Defaults unchanged.
+# PICKLE_FILE/MODEL_NAME env overrides added 2026-08-23 for the range-widening retrain, so a
+# candidate checkpoint can be trained and gated (aleatoric calibration, headline re-verification, …
 PICKLE_FILE  = os.environ.get("PICKLE_FILE", "../data/drone_data_100000.pkl")
 MODEL_NAME   = os.environ.get("MODEL_NAME", "Quadrotor3D_gat")
 model_path   = f"checkpoint/{MODEL_NAME}.pth"
@@ -37,26 +28,12 @@ resume_path  = f"checkpoint/{MODEL_NAME}_resume.pth"
 GAMMA_DIM   = 1      # only alpha_obs
 LR          = 0.0003
 BATCHSIZE   = 256
-# EPOCH env override added 2026-08-23 to support a short smoke retrain
-# (~20-30 epochs, this project's established pattern for catching a
-# degenerate/broken retrain cheaply before committing the full run) without
-# editing this file. Default unchanged.
+# EPOCH env override added 2026-08-23 to support a short smoke retrain (~20-30 epochs, this
+# project's established pattern for catching a degenerate/broken retrain cheaply before committing …
 EPOCH       = int(os.environ.get("EPOCH", 300))
 N_HIDDEN    = 40
 N_ENSEMBLE  = 3
 # [progress_deficit, min_h_horizon], both receding-horizon quantities.
-# Label vintages, oldest first: [deadlock_time, -min_h] (near gamma-
-# invariant under an active CBF) -> [t_goal, viol_integral] (whole-episode-
-# from-start, a train/query state-distribution mismatch since the deployed
-# node queries mid-course) -> [low_speed_time, risk_horizon] (Stage 2,
-# 2026-08-18, barrier-label-collapse plan) -> this one (2026-08-20: risk
-# head swapped from the risk_horizon integral to min_h_horizon directly --
-# see drone_data_generation.py's worker() -- the integral let brief-but-
-# real min_h<0 grazes pass through nearly unpenalized; min_h_horizon can't
-# hide that the way an accumulated-violation-time integral can). Second
-# output is UNBOUNDED and signed now (low/negative=dangerous), not >=0 --
-# see cccp_calibrate_drone.py and AdaptivePolicy.select()'s matching gate-
-# direction flip.
 N_OUTPUT    = 2
 ACTIVATION  = 'relu'
 

@@ -1,21 +1,5 @@
 #!/usr/bin/env python3
-"""Companion-computer-side geofence backup for real-hardware flights.
-
-Watches state_estimator/local_position/odom and issues an RTL VehicleCommand
-the moment position leaves a configured box. This has no SITL equivalent --
-sim never needed a geofence -- so it's new, not a port of anything.
-
-This is a BACKUP layer, not the primary one. The primary geofence must be
-configured natively on the Pixhawk itself (PX4's GF_ACTION / GF_MAX_HOR_DIST
-etc. params), because that enforcement keeps working even if the companion
-computer, this node, or the ROS link between them dies -- which is exactly
-the situation a geofence needs to survive. Do not fly relying on this node
-alone.
-
-Reacts with RTL (VEHICLE_CMD_NAV_RETURN_TO_LAUNCH), not a raw disarm --
-disarming mid-flight drops the vehicle out of the sky. RTL is what PX4's own
-GF_ACTION defaults to for a reason.
-"""
+"""Companion-computer-side geofence backup for real-hardware flights."""
 
 import rclpy
 from rclpy.node import Node

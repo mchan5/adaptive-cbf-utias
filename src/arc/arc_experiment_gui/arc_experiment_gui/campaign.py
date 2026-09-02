@@ -1,11 +1,4 @@
-"""Campaign plan + manifest/CSV bookkeeping for the trial runner.
-
-A campaign is `N scenes x M arms x K trials`, with the arm order randomised
-within each scene (plan sec 5.2 / HARDWARE_THESIS_PLAN sec 4.4). Everything is
-plain JSON/CSV on disk so a campaign is resumable after a crash: the runner
-re-reads `manifest.json` on start and skips cells that already have a
-non-empty outcome.
-"""
+"""Campaign plan + manifest/CSV bookkeeping for the trial runner."""
 
 import csv
 import json

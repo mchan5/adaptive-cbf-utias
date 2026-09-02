@@ -1,18 +1,5 @@
-"""
-Phase 2b of the Pareto-reframe plan (2026-08-25): converts the CSV rows from
-body_rate_pareto_label_export (per-decision-point, per-candidate-gamma
-state + label, from the corrected within-episode oracle) into the exact
-same pickle schema drone_data_generation.py::worker() already produces --
-a list of {"graph_data": {x, edge_index, edge_attr, y, gamma}} dicts -- via
-the SAME GATModule3D.create_graph() call worker() uses, so train_drone.py
-needs zero code changes to consume this data. Only the label SOURCE differs
-(real body-rate closed-loop oracle rollouts of states an actual episode
-visits, vs. the old point-mass carrier-trajectory sampling); the schema and
-downstream training/calibration code are untouched.
-
-Usage:
-    python pareto_label_csv_to_pickle.py <in.csv> <out.pkl>
-"""
+"""Phase 2b of the Pareto-reframe plan (2026-08-25): converts the CSV rows from
+body_rate_pareto_label_export (per-decision-point, per-candidate-gamma state + label, from …"""
 import csv
 import os
 import pickle
@@ -25,9 +12,8 @@ DRONE_RADIUS = 0.25
 
 
 def parse_obstacles(field):
-    """field: "ox,oy,oz,r;ox,oy,oz,r;..." -> [[ox,oy,oz,r,0,0,0], ...]
-    (trailing zeros match worker()'s obs_list convention: obstacles are
-    treated as static, vx=vy=vz=0)."""
+    """field: "ox,oy,oz,r;ox,oy,oz,r;..." -> [[ox,oy,oz,r,0,0,0], ...] (trailing zeros match
+    worker()'s obs_list convention: obstacles are treated as static, vx=vy=vz=0)."""
     if not field:
         return []
     out = []
@@ -71,15 +57,8 @@ def main(csv_path, out_path):
                     "y": graph.y.cpu().numpy(),
                     "gamma": graph.gamma.cpu().numpy(),
                 },
-                # episode_id (2026-08-26, PLAN_adaptive_recovery §1.3):
-                # (seed, scene) uniquely identifies the source episode this
-                # decision point was drawn from -- the CSV already carries
-                # it, this just doesn't drop it on the way into the pickle.
-                # Extra dict key is a no-op for every existing reader
-                # (train_drone.py/cccp_calibrate_drone.py only index
-                # item["graph_data"]); lets a future trajectory-level
-                # conformal calibration (Q_i = max_t D(X_t) grouped by
-                # episode_id) be computed without regenerating data again.
+                # episode_id (2026-08-26, PLAN_adaptive_recovery §1.3): (seed, scene) uniquely
+                # identifies the source episode this decision point was drawn from -- the CSV …
                 "episode_id": f"{row['seed']}_{row['scene']}",
             })
 

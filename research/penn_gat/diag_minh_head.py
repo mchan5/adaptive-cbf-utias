@@ -1,31 +1,5 @@
-"""
-diag_minh_head.py
-
-The min_h_horizon label swap (2026-08-20) did not move the shipped
-`network`-gate violation rate (36%, unchanged). Two very different causes
-produce that same symptom, and they need opposite fixes:
-
-  (a) the risk head predicts min_h badly -> more/better training, different
-      architecture, longer schedule
-  (b) the risk head predicts min_h fine, but something downstream (the
-      epistemic JRD gate, or a miscalibrated cvar_boundary) discards the
-      good candidates anyway -> no retrain needed at all, just fix the gate
-
-This is the same technique that cracked the risk-integral bug earlier
-(diag_horizon_blindspot.py): instrument the EXACT query states, compare the
-network's prediction to ground truth from the real simulator, and let the
-comparison say which layer is at fault -- rather than retraining blindly and
-guessing from the aggregate number.
-
-Reports:
-  1. Prediction quality across ALL queries (corr, RMSE, bias, sign accuracy)
-     -- is the head learning min_h at all?
-  2. The same restricted to pre-violation query states -- does it fail
-     specifically where it matters, even if it's fine on average?
-  3. Gate accounting: per query, how many candidates each gate rejected, how
-     often a genuinely-safe candidate existed but was rejected anyway, and
-     which gate did the rejecting. This is what separates (a) from (b).
-"""
+"""The min_h_horizon label swap (2026-08-20) did not move the shipped `network`-gate violation
+rate (36%, unchanged)."""
 import numpy as np
 import torch
 

@@ -1,11 +1,5 @@
-// Standalone diagnostic for investigating why PennGammaSelector::selectGamma
-// has been falling back to gamma_min on every call in practice (see
-// params_single_vehicle_cbf_rate_arc.yaml's penn_enabled comment). Loads the
-// real checkpoint and runs the real inference path against a frozen-vehicle
-// state captured from an actual CBF-QP deadlock (2026-08-10 randomized
-// stress test, trial 4), printing the full per-candidate-gamma table
-// (divergence, predicted deadlock/risk, pass/fail against each gate)
-// instead of just the final selected gamma.
+// Standalone diagnostic for investigating why PennGammaSelector::selectGamma has been falling back
+// to gamma_min on every call in practice (see params_single_vehicle_cbf_rate_arc.yaml's …
 #include <array>
 #include <cstdio>
 #include <cstdlib>
@@ -18,9 +12,8 @@
 
 using nodelib::PennGammaSelector;
 
-// Offline dev tool: resolve default asset paths from $ARC_ROOT (exported by
-// scripts/setup.sh); fall back to a repo-root-relative path. Always overridable
-// via argv.
+// Offline dev tool: resolve default asset paths from $ARC_ROOT (exported by scripts/setup.sh); fall
+// back to a repo-root-relative path. Always overridable via argv.
 static std::string arcPath(const char* rel) {
   const char* root = std::getenv("ARC_ROOT");
   return (root && *root ? std::string(root) + "/" : std::string()) + rel;
@@ -34,17 +27,13 @@ int main(int argc, char** argv) {
 
   PennGammaSelector selector(model_path.c_str());
 
-  // Frozen state from trial 4's deadlock (gate 1 dodged, gate 2 immediately
-  // ahead and to the side -- see conversation for the full trace). Swap in
-  // an early-flight state (e.g. pos=(0.02,0.3,0.15), vel=(0.1,2.6,0.4)) to
-  // reproduce the far-field high-epistemic-divergence comparison case.
+  // Frozen state from trial 4's deadlock (gate 1 dodged, gate 2 immediately ahead and to the side
+  // -- see conversation for the full trace).
   const Eigen::Vector3d pos_enu(0.97, 1.08, -0.03);
   const Eigen::Vector3d vel_enu(0.0, 0.0, 0.0);
   const Eigen::Vector3d goal(0.0, 5.5, 1.5);  // matches waypoint_{x,y,z} in the live yaml
 
   // trial_04.json obstacles: flat [x,y,z,diameter]*, z-stacked pairs.
-  // ObstacleInput.radius mirrors production (obstaclesCallback): diameter/2
-  // + obs_safety_margin (0.5), not the CBF's fixed obs_d_min.
   const double margin = 0.5;
   const std::vector<std::array<double, 4>> raw_obstacles = {
       {0.0, 0.9, 0.52, 1.03},    {0.0, 0.9, 1.61, 1.03},   {-1.06, 2.07, 0.49, 0.66},
@@ -60,12 +49,6 @@ int main(int argc, char** argv) {
   }
 
   // Params from params_single_vehicle_cbf_rate_arc.yaml.
-  // Updated 2026-08-22 to the validated checkpoint's actual calibration
-  // (was the stale/OOD params_single_vehicle_cbf_rate_arc.yaml values:
-  // gamma_max_candidate=10.0 against a training range that tops out at
-  // 3.5, and epistemic/cvar thresholds calibrated for the pre-min_h-label
-  // checkpoint). See eval_scene_distribution.py's DEPLOY_GAMMA_MIN/MAX and
-  // nn_model/checkpoint/cccp_threshold_Quadrotor3D_gat.json.
   PennGammaSelector::GammaSelectionParams params;
   params.goal = goal;
   params.gamma_min = 0.5;

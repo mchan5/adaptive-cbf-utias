@@ -15,11 +15,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 
 NAN = float('nan')
 
-# PENN+GAT model tree lives in the repo at research/penn_gat/nn_model. Resolve
-# it from $ARC_ROOT (exported by scripts/setup.sh) so no absolute path is baked
-# into the source; the ~/arc_2026 fallback only applies when the env var is
-# unset. If the tree is absent the node logs a warning and falls back to the
-# fixed cbf_alpha_obs gain.
+# PENN+GAT model tree lives in the repo at research/penn_gat/nn_model.
 _ARC_ROOT = os.environ.get('ARC_ROOT', os.path.expanduser('~/arc_2026'))
 _PENN_MODEL_DIR = os.path.join(_ARC_ROOT, 'research', 'penn_gat', 'nn_model')
 

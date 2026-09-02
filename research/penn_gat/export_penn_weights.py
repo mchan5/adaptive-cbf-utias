@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
-"""One-time export: pull the raw tensors the C++ PennGammaSelector needs out of
-the validated Quadrotor3D_gat.pth checkpoint, and save them as a flat
-{str: Tensor} dict
-"""
+"""One-time export: pull the raw tensors the C++ PennGammaSelector needs out of the validated
+Quadrotor3D_gat.pth checkpoint, and save them as a flat {str: Tensor} dict"""
 import os
 import sys
 
 import torch
 
 _THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-# CHECKPOINT_PATH/OUTPUT_PATH env overrides added 2026-08-23, matching
-# train_drone.py's pattern, so a candidate checkpoint can be exported to a
-# scratch location for parity-check/campaign testing without overwriting
-# the live single_vehicle_cbf_rate_arc/nn_model/checkpoint/gat_penn_weights.pt
-# the deployed node actually loads.
+# CHECKPOINT_PATH/OUTPUT_PATH env overrides added 2026-08-23, matching train_drone.py's pattern, so
+# a candidate checkpoint can be exported to a scratch location for parity-check/campaign testing …
 _CHECKPOINT_PATH = os.environ.get("CHECKPOINT_PATH") or os.path.join(
     _THIS_DIR, "nn_model", "checkpoint", "Quadrotor3D_gat.pth")
 _OUTPUT_PATH = os.environ.get("EXPORT_OUTPUT_PATH") or os.path.join(
@@ -22,13 +17,8 @@ _OUTPUT_PATH = os.environ.get("EXPORT_OUTPUT_PATH") or os.path.join(
 
 
 def main():
-    # BUG (found 2026-08-22): this used to check `if _THIS_DIR not in
-    # sys.path` before inserting `_THIS_DIR/nn_model` -- checking one path
-    # and inserting a different one. Running this script directly makes
-    # Python auto-add _THIS_DIR (the script's own directory) to sys.path,
-    # so the check was always false and nn_model never got added --
-    # `import gat_3d` failed every time. No gat_penn_weights.pt has ever
-    # existed on disk as a result.
+    # BUG (found 2026-08-22): this used to check `if _THIS_DIR not in sys.path` before inserting
+    # `_THIS_DIR/nn_model` -- checking one path and inserting a different one.
     nn_model_dir = os.path.join(_THIS_DIR, "nn_model")
     if nn_model_dir not in sys.path:
         sys.path.insert(0, nn_model_dir)

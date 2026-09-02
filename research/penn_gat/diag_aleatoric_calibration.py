@@ -1,45 +1,5 @@
-"""
-diag_aleatoric_calibration.py
-
-Is the PENN's aleatoric (per-member predictive variance) head actually
-estimating anything, or is it degenerate?
-
-Background: until 2026-08-22 it was degenerate. EnsembleStochasticLinear
-(nn_model/penn/penn.py) clamped log_std to a max of -2, i.e. a sigma
-ceiling of exp(-2) ~= 0.1353, while the training targets it had to model
-run to std 1.49 / max 37.1 on the risk channel (min_h_horizon). Gaussian
-NLL is minimized at var = (target-mu)^2, so the NLL-optimal variance sat
-above the ceiling for nearly every sample and log_std saturated at the cap
-for almost all inputs -- producing a near-constant sigma that carried no
-scene information. The clamp was widened to a data-driven 3.6 and the
-model retrained; this script is the check that the fix actually took, and
-the reproduction path for the correlation figures the paper cites.
-
-Two things are measured, because "sigma varies" is much weaker than
-"sigma is informative":
-  1. SPREAD -- does predicted sigma vary across the validation set at all?
-     (A degenerate head fails here: near-zero std, one unique value.)
-  2. CALIBRATION -- does predicted sigma actually track the model's own
-     error? Pearson/Spearman correlation between mean predicted sigma and
-     |mean_mu - y_true| on the risk channel, plus mean |residual| bucketed
-     by sigma decile. This is the real test: a head can be non-constant
-     and still uninformative. For a genuinely heteroscedastic head the
-     decile table should rise monotonically.
-
-Reports the risk channel (y[:,1] = min_h_horizon), which is the channel
-AdaptivePolicy.select()'s LCB term and cvar_boundary both gate on.
-
-NOTE on reproducing the historical failure: degeneracy was a property of
-the CLAMP (code), not of the weights, so simply pointing --checkpoint at a
-pre-fix checkpoint does NOT reproduce it -- the current code's wider clamp
-un-saturates those same weights. Use --log-std-max -2 to restore the old
-ceiling and see the original behavior (sigma pinned at ~0.1353 for nearly
-every sample). That is what the SATURATION metric below exists to catch,
-and it is a sharper degeneracy test than spread or correlation alone.
-
-Run from penn_gat_training/:
-    python diag_aleatoric_calibration.py [--checkpoint PATH] [--log-std-max X]
-"""
+"""Is the PENN's aleatoric (per-member predictive variance) head actually estimating anything, or
+is it degenerate? Background: until 2026-08-22 it was degenerate."""
 import argparse
 import os
 import pickle
@@ -83,10 +43,7 @@ def load_graph_dataset(pickle_file):
 
 
 def collect(penn_gat, data_list, device):
-    """Returns (mean_sigma, abs_residual) per validation sample, both for the
-    risk channel. mean_sigma is averaged over ensemble members (the aleatoric
-    part); abs_residual uses the ensemble-mean mu, matching what the deployed
-    gate actually thresholds."""
+    """Returns (mean_sigma, abs_residual) per validation sample, both for the risk channel."""
     loader = GeoDataLoader(data_list, batch_size=BATCH_SIZE, shuffle=False)
     penn_gat.gat_network.eval()
     penn_gat.model.eval()
@@ -153,10 +110,7 @@ def main():
           f"max={sigma.max():.4f}")
     print(f"  distinct values (4dp): {len(np.unique(np.round(sigma, 4))):,}")
 
-    # The actual signature of the 2026-08-22 failure: sigma pinned AT the
-    # ceiling. Spread and correlation can both look superficially fine on a
-    # checkpoint whose deployed behavior was degenerate (e.g. loading pre-fix
-    # weights under the post-fix clamp), so test saturation directly.
+    # The actual signature of the 2026-08-22 failure: sigma pinned AT the ceiling.
     sat_frac = float((sigma >= 0.99 * ceiling).mean())
     print(f"\n  SATURATION: {100*sat_frac:.1f}% of samples pinned at the sigma ceiling "
           f"({ceiling:.4f})")

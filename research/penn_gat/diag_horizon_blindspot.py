@@ -1,25 +1,5 @@
-"""
-diag_horizon_blindspot.py
-
-Step-1 follow-up diagnostic from the scene-level reframe's Stage-3 failure
-(2026-08-20): the post-fix adaptive policy is unsafe on 18/50 held-out
-scenes despite the risk gate (cvar_boundary) supposedly filtering out any
-gamma predicted unsafe. Hypothesis: the gate bounds risk within one 4s
-receding-horizon window at query time, but the deployed node re-queries
-every ~1s -- a state that looks safe over the next 4s can still be one from
-which, one second later (closer to the obstacle, possibly faster), no
-gamma keeps the barrier satisfied. This checks that hypothesis directly by
-comparing, at the query immediately before each violation:
-  (a) the MODEL's predicted risk_horizon at the selected gamma  (calibration)
-  (b) GROUND-TRUTH risk_horizon at the same state/gamma, horizon=4s          (should ~match (a) if the model is well fit)
-  (c) GROUND-TRUTH risk over a LONGER window (8s, 12s) from the same state/gamma
-      (reveals whether danger was already present just past the training horizon)
-
-If (a)~(b) but (c) >> cvar_boundary while (b) <= cvar_boundary: the gate is
-well-calibrated for what it measures, and the bug is the horizon length /
-query cadence, not the risk head. If (a) << (b): the risk head itself is
-mispredicting even within the window it was trained on.
-"""
+"""Step-1 follow-up diagnostic from the scene-level reframe's Stage-3 failure (2026-08-20): the
+post-fix adaptive policy is unsafe on 18/50 held-out scenes despite the risk gate …"""
 import numpy as np
 import torch
 

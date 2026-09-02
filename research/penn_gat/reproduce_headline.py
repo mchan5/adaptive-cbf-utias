@@ -1,43 +1,4 @@
-"""
-reproduce_headline.py
-
-Single entry point for the validated result-of-record. As of the
-2026-08-22 aleatoric-head fix (widened log_std clamp in penn.py, retrained,
-lcb_k=1.50 calibrated in diag_lcb_cv.py against the min-margin-violation
-rule), this points at the RETRAINED checkpoint in nn_model/checkpoint/, not
-the old results/frozen_20260822/ snapshot -- run this to confirm the
-retrained model still clears the safety bar before freezing a new result
-directory. Once confirmed, copy nn_model/checkpoint/{Quadrotor3D_gat.pth,
-cccp_threshold_Quadrotor3D_gat.json} into a new results/frozen_<date>/ and
-repoint CKPT/THRESH there, mirroring frozen_20260822/MANIFEST.md's
-conventions.
-
-margin=0.00, lcb_k=0.25: diag_lcb_cv.py's point-mass sweep (6 calibration /
-7 test seeds) initially selected lcb_k=1.50 (min margin-violations among
-0-hard-collision candidates). Deploying that on the actual body-rate
-controller made the closed-loop campaign's deadlock rate WORSE (14/350 ->
-22/350, see results/frozen_closed_loop_20260822/) than lcb_k=0, since the
-point-mass calibration never saw body-rate dynamics' deadlock failure
-mode. A follow-up sweep directly on the closed-loop campaign found
-lcb_k=0.25 ties lcb_k=0 for fewest deadlocks while still cutting
-margin-violations there (8->6/350) -- it's the value that's actually good
-on BOTH simulators, not just the one it was first calibrated on.
-
-Reports the number honestly on both axes flagged in the wiki writeup:
-  - speed, both UNPAIRED (what most papers would report) and PAIRED
-    (bias-corrected for the survivorship effect diag_paired_speed.py found)
-  - hard collisions (the real safety metric) AND margin-violations (the
-    500mm soft-buffer grazes the speed win is bought with -- NOT the same
-    thing as "safe". lcb_k>0 makes the aleatoric uncertainty head actually
-    load-bearing at selection time instead of calibrated-but-unused)
-
-Does not calibrate or select anything -- margin=0.00, lcb_k=0.25, and the
-checkpoint path are fixed inputs. Re-run this after any retrain to confirm
-the frozen number still reproduces bit-for-bit before trusting a new one.
-
-Usage:
-    python reproduce_headline.py
-"""
+"""Single entry point for the validated result-of-record."""
 import os
 
 import numpy as np
@@ -45,12 +6,8 @@ import numpy as np
 import eval_scene_distribution as E
 
 CKPT_DIR = os.path.join(os.path.dirname(__file__), "nn_model", "checkpoint")
-# Defaults track the DEPLOYED config
-# (config/params_single_vehicle_cbf_rate_arc.yaml): the 2026-08-27 clean
-# retrain (gat_penn_clean_20260826, lcb_k=0.0, gamma range [2.0, 9.5]) and
-# the 2026-08-29 conservative-ratchet fallback. Override any of these via
-# env for an A/B or to reproduce a historical number. gamma range comes
-# from eval_scene_distribution's DEPLOY_GAMMA_MIN/MAX (also env-driven).
+# Defaults track the DEPLOYED config (config/params_single_vehicle_cbf_rate_arc.yaml): the
+# 2026-08-27 clean retrain (gat_penn_clean_20260826, lcb_k=0.0, gamma range [2.0, 9.5]) and the …
 _CKPT_NAME = os.environ.get("CHECKPOINT_NAME", "gat_penn_clean_20260826")
 CKPT = os.path.join(CKPT_DIR, f"{_CKPT_NAME}.pth")
 THRESH = os.path.join(CKPT_DIR, f"cccp_threshold_{_CKPT_NAME}.json")

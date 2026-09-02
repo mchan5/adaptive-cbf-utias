@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-# Run once per machine. Detects the device, materialises .arc-local.env at the
-# repo root (gitignored), and prepares the VS Code settings from the template.
-#
-#   scripts/setup.sh [device]
-#
-# Pass a device name to override hostname detection (desktop|laptop|jetson).
+# Run once per machine. Detects the device, materialises .arc-local.env at the repo root
+# (gitignored), and prepares the VS Code settings from the template.
 set -euo pipefail
 
 ARC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

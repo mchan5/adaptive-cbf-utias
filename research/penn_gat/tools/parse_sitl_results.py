@@ -1,23 +1,5 @@
-"""
-parse_sitl_results.py
-
-Parses a SITL spot-check's per-episode stdout logs (produced by e.g.
-run_sitl_spotcheck.sh -- see results/sitl_spotcheck_20260824/MANIFEST.md)
-into a results.json matching the schema results/sitl_spotcheck_20260822/
-established. ~1s granularity (the node logs every 100 ticks / 1s at
-100Hz) -- can miss a closer transient approach between logged ticks, same
-limitation as the source data itself.
-
-Usage:
-    python parse_sitl_results.py <runs_dir> <scenes_dir> <log_prefix>
-
-    runs_dir:    directory of "<log_prefix>_scene_NN.log" files
-    scenes_dir:  directory of "scene_NN.json" obstacle files
-                 (gen_sitl_obstacle_scenes.py's output format)
-    log_prefix:  arm label used in the log filenames, e.g. "fixed5.0"
-
-Writes <runs_dir>/../results.json and prints a summary line.
-"""
+"""Parses a SITL spot-check's per-episode stdout logs (produced by e.g. run_sitl_spotcheck.sh --
+see results/sitl_spotcheck_20260824/MANIFEST.md) into a results.json matching the schema …"""
 import json
 import math
 import os

@@ -1,41 +1,6 @@
 #!/usr/bin/env python3
-"""Export a SITL trial's trajectory into a per-scene reference the operator
-console overlays as a faint "ghost" during the matched hardware run.
-
-Trials are hardware-only now; the SITL twin for each frozen scene is just a
-visual/quantitative reference. This tool turns one recorded SITL rosbag into
-``scene_NN.ref.json`` sitting next to ``scene_NN.json`` in the campaign scene
-dir. The console loads it automatically when that scene is selected
-(``_load_reference`` in main.py); if the file is absent the console just shows
-"SITL ref: not exported" and carries on.
-
-Output schema (all keys optional except ``scene`` and ``trail``)::
-
-    {
-      "scene": 3,
-      "source_bag": "/abs/path/to/bag_dir",
-      "exported_at": "2026-08-31T02:10:00",
-      "trail": [[x, y], ...],            # ENU, downsampled, from odom
-      "t_goal": 6.21,                    # s, first goal publish -> first `reached`
-      "min_obstacle_dist": 0.214,        # m, min over the diagnostics stream
-      "obstacles": [[x, y, z, d], ...]   # last non-empty /arc/obstacles frame
-    }
-
-Usage::
-
-    source install/setup.bash
-    python3 arc_experiment_gui/tools/export_sitl_reference.py \\
-        --bag ~/arc_campaigns/20260831_sitl/scene03_adaptive_trial1 \\
-        --scene-dir <ws>/install/single_vehicle_cbf_rate_arc/share/single_vehicle_cbf_rate_arc/config/scenes/hw_campaign \\
-        --scene 3
-
-    # or point it at a dir of bags named sceneNN_*: one .ref.json per scene
-    python3 .../export_sitl_reference.py --bag-root ~/arc_campaigns/20260831_sitl \\
-        --scene-dir .../hw_campaign --arm adaptive
-
-The bag needs, at minimum, the odom topic. ``t_goal`` / ``min_obstacle_dist``
-/ ``obstacles`` are filled only if the matching topics are present.
-"""
+"""Export a SITL trial's trajectory into a per-scene reference the operator console overlays as a
+faint "ghost" during the matched hardware run."""
 
 import argparse
 import glob

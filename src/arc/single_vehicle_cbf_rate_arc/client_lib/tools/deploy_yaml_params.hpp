@@ -1,24 +1,5 @@
-// deploy_yaml_params.hpp
-//
-// Single source of truth for the offline harnesses: load the controller
-// parameters from the SAME file the deployed node ships with
-// (config/params_single_vehicle_cbf_rate_arc.yaml) instead of a hand-
-// maintained snapshot in baseParams() that silently drifts.
-//
-// Motivation (PLAN_adaptive_hardening_20260829.md Phase 0.1): on 2026-08-29
-// an audit found body_rate_closed_loop_diag.cpp's baseParams() had drifted
-// from the deployed YAML on six parameters (penn_gamma_min/max,
-// epistemic_threshold, cvar_boundary, lcb_k, nom_accel_max/kp/kd) plus
-// cbf_gamma_obs. The default candidate grid [0.5, 2.5] was almost entirely
-// outside the deployed checkpoint's training support {2, 3.5, ... 9.5} --
-// the exact configuration that manufactured a false "regression" in
-// PLAN_adaptive_recovery_20260826.md part 7 before it was caught by hand.
-//
-// This loader fails LOUDLY (exit 1) if the YAML cannot be read: a missing
-// config is a bug in how the tool was invoked, never something to paper
-// over with a stale default. Env-var A/B overrides (NOM_ACCEL_MAX,
-// PENN_GAMMA_MIN, EPISTEMIC_THRESHOLD, ...) are still honoured -- the caller
-// applies them AFTER calling loadDeployedParams().
+// deploy_yaml_params.hpp Single source of truth for the offline harnesses: load the controller
+// parameters from the SAME file the deployed node ships with …
 #pragma once
 
 #include <cstdio>
@@ -33,17 +14,11 @@
 
 namespace diagtools {
 
-// Overwrites every field of `p` that also appears in the deployed parameter
-// file. Fields absent from the YAML keep their RateAutopilotCore::Params
-// constructor default. Path resolution: $DEPLOY_YAML if set, else
-// `default_rel_path` (relative to the tool's working directory -- the diag
-// tools already resolve nn_model/checkpoint/... and results/... the same
-// way, i.e. they are run from the package source directory).
+// Overwrites every field of `p` that also appears in the deployed parameter file. Fields absent
+// from the YAML keep their RateAutopilotCore::Params constructor default.
 inline void loadDeployedParams(nodelib::RateAutopilotCore::Params& p) {
-  // Resolution order: $DEPLOY_YAML, then a few paths relative to the
-  // working directory the offline tools are actually launched from (the
-  // package source dir, and penn_gat_training/ where run_full_validation.sh
-  // runs). First one that loads wins.
+  // Resolution order: $DEPLOY_YAML, then a few paths relative to the working directory the offline
+  // tools are actually launched from (the package source dir, and penn_gat_training/ where …
   std::vector<std::string> candidates;
   if (const char* env = std::getenv("DEPLOY_YAML")) candidates.emplace_back(env);
   candidates.emplace_back("config/params_single_vehicle_cbf_rate_arc.yaml");
@@ -134,18 +109,15 @@ inline void loadDeployedParams(nodelib::RateAutopilotCore::Params& p) {
   d("penn_proximity_gate_m", p.penn_proximity_gate_m);
   d("epistemic_threshold", p.epistemic_threshold);
   d("cvar_boundary", p.cvar_boundary);
-  // deadlock_threshold is deliberately NOT read here: it is vestigial (the
-  // selector no longer gates on it, see penn_gamma_selector.cpp), and the
-  // diag harness pins it to a sentinel 1e9 of its own. Reading the YAML's
-  // 5.0 would be "more faithful" but changes an inert value for no benefit.
+  // deadlock_threshold is deliberately NOT read here: it is vestigial (the selector no longer gates
+  // on it, see penn_gamma_selector.cpp), and the diag harness pins it to a sentinel 1e9 of its own.
   d("lcb_k", p.lcb_k);
   d("continuity_weight", p.continuity_weight);
   d("penn_fallback_step", p.fallback_step);  // YAML key -> struct field name
   b("penn_feasibility_gate", p.penn_feasibility_gate);
 
-  // T_max: the deployed node computes this from its actuator curve. Mirror
-  // that from the same three values the node reads, so the QP thrust bound
-  // matches deployment exactly.
+  // T_max: the deployed node computes this from its actuator curve. Mirror that from the same three
+  // values the node reads, so the QP thrust bound matches deployment exactly.
   if (r["vehicle_thrust_scaling"] && r["vehicle_idle_thrust"] && r["vehicle_num_rotors"]) {
     const double s = r["vehicle_thrust_scaling"].as<double>();
     const double idle = r["vehicle_idle_thrust"].as<double>();

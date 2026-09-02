@@ -1,12 +1,4 @@
-"""
-cccp_calibrate_drone.py — Epistemic (JRD) threshold calibration for Quadrotor3D_gat.
-
-Computes the 95th-percentile JRD across the training dataset and prints the
-value to paste into the ROS2 inference node config.
-
-Run from the nn_model/ directory after training:
-    python cccp_calibrate_drone.py
-"""
+"""Epistemic (JRD) threshold calibration for Quadrotor3D_gat."""
 
 import json
 import os
@@ -82,36 +74,8 @@ def collect_aleatoric_boundary(penn_gat, data_list, batch_size=512,
                                 alpha=0.95,
                                 safe_min_h_threshold=0.0,
                                 safe_deadlock_threshold=float("inf")):
-    """
-    Lower-(1-alpha)-percentile of ensemble mean_mu (risk-head output) over
-    samples where true_min_h >= safe_min_h_threshold. Use as cvar_boundary
-    in inference config.
-
-    As of Stage 2 (2026-08-18, barrier-label-collapse plan) this value is
-    load-bearing again: _penn_select_alpha uses cvar_boundary as the
-    aleatoric gate in a gates-then-argmin-performance rule (mirroring Kim
-    et al.'s DR-CVaR filter), not the vestigial parameter it briefly was
-    under the argmin-risk-with-tiebreak rule.
-
-    y[:,1] SWAPPED 2026-08-20 (recursive-feasibility redesign, Phase 2
-    follow-up) from risk_horizon (an accumulated-violation-time integral,
-    >=0, low=safe) to min_h_horizon (the worst instantaneous barrier value
-    over the horizon -- unbounded either direction, LOW/NEGATIVE=dangerous,
-    HIGH/POSITIVE=safe). See drone_data_generation.py's worker() for the
-    full rationale. This function's calibration direction flips to match:
-    the old version took the UPPER (alpha) tail of predicted risk among
-    genuinely-safe (near-zero true risk) samples, so a threshold above it
-    catches abnormally-high-risk predictions. This version takes the LOWER
-    (1-alpha) tail of predicted min_h among genuinely-safe (true_min_h >= 0)
-    samples, so a threshold below it catches abnormally-low-min_h
-    predictions -- same 95%-of-genuinely-safe-cases-still-pass intent, same
-    alpha, opposite tail because the quantity's polarity inverted.
-
-    y[:,0] (deadlock_vals) is still low_speed_time-derived (progress_deficit
-    as of Stage 2); the safe_deadlock_threshold=inf disable below still
-    applies for the same reason as before (selection safety shouldn't also
-    gate on the performance label here).
-    """
+    """Lower-(1-alpha)-percentile of ensemble mean_mu (risk-head output) over samples where
+    true_min_h >= safe_min_h_threshold."""
     loader = GeoDataLoader(data_list, batch_size=batch_size, shuffle=False)
     penn_gat.gat_network.eval()
     penn_gat.model.eval()
@@ -154,19 +118,7 @@ def collect_aleatoric_boundary(penn_gat, data_list, batch_size=512,
 
 
 def collect_risk_noise_floor(penn_gat, data_list, batch_size=512):
-    """
-    Mean predicted std-dev of the risk head across the ensemble.
-
-    Vestigial as of Stage 2 (2026-08-18, barrier-label-collapse plan):
-    risk_tie_eps drove the argmin-risk-with-conservative-tiebreak rule this
-    project used between the two label-swap fixes and the Stage-2 gates-
-    then-argmin-performance rewrite; that rule had a constant global
-    minimizer regardless of tie_eps and has been replaced (see
-    cbf_obstacle_node.py:_penn_select_alpha). Kept here and in the output
-    JSON only for diagnostic continuity (e.g. to check whether the
-    ensemble's variance head is still homoscedastic under the Stage-2
-    labels) -- not read by inference anymore.
-    """
+    """Mean predicted std-dev of the risk head across the ensemble."""
     loader = GeoDataLoader(data_list, batch_size=batch_size, shuffle=False)
     penn_gat.gat_network.eval()
     penn_gat.model.eval()

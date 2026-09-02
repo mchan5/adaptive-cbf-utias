@@ -1,24 +1,5 @@
-"""
-diag_gen_cpp_parity_states.py
-
-Generates a batch of random (pos, vel, goal, obstacles) states, computes the
-Python reference's selected gamma for each via AdaptivePolicy.select() (the
-exact validated logic), and saves both the inputs and the expected outputs
-as a torch pickle -- reusing the same torch::jit::pickle_load mechanism
-already used for the C++ node's exported weights, so no new C++ dependency
-is needed to consume this file.
-
-The one hand-picked frozen state in penn_gamma_diagnostic.cpp proved the
-C++ and Python implementations CAN agree; it does not prove they agree in
-general (different obstacle counts, different epistemic-gate regimes,
-different fallback-vs-gated outcomes). This is the actual parity sweep the
-redesign plan called for.
-
-Padding convention: obstacles are padded to MAX_OBS per state with
-radius=-1.0 sentinel rows (a real radius can never be negative), so the C++
-side can determine each state's actual obstacle count without a separate
-length tensor.
-"""
+"""Generates a batch of random (pos, vel, goal, obstacles) states, computes the Python
+reference's selected gamma for each via AdaptivePolicy.select() (the exact validated logic), …"""
 import os
 import sys
 
@@ -33,20 +14,14 @@ import drone_data_generation as G  # noqa: E402
 
 N_STATES = 300
 MAX_OBS = 16
-# The flat exported-tensor weights the C++ node actually loads. The parity
-# fixture is stamped with a hash of THIS file (see fnv1a64 below) so
-# penn_gamma_parity_check refuses to run against a checkpoint the fixture
-# was not generated from -- the exact silent failure found 2026-08-29,
-# where gat_penn_weights.pt was re-exported but the fixture was not
-# regenerated, turning Tier 1 from a guard into 263 spurious mismatches.
+# The flat exported-tensor weights the C++ node actually loads.
 DEPLOY_PT = os.path.join(os.path.dirname(__file__), "..", "single_vehicle_cbf_rate_arc",
                          "nn_model", "checkpoint", "gat_penn_weights.pt")
 
 
 def fnv1a64(path):
-    """64-bit FNV-1a over a file's bytes. Not cryptographic -- a cheap
-    cross-language content stamp (mirrored in penn_gamma_parity_check.cpp)
-    for staleness detection only."""
+    """64-bit FNV-1a over a file's bytes. Not cryptographic -- a cheap cross-language content
+    stamp (mirrored in penn_gamma_parity_check.cpp) for staleness detection only."""
     h = 0xCBF29CE484222325
     with open(path, "rb") as fh:
         while True:
@@ -63,11 +38,8 @@ OUT_PATH = os.path.join(os.path.dirname(__file__), "..", "single_vehicle_cbf_rat
 
 
 def sample_query_state(rng, scene):
-    """Sample a plausible (pos, vel) query state along a scene's flight
-    envelope, biased toward near-obstacle states the same way training
-    does -- covers both the far-field (epistemic-gate-heavy) and
-    near-obstacle (risk-gate-heavy) regimes, not just one frozen point.
-    """
+    """Sample a plausible (pos, vel) query state along a scene's flight envelope, biased toward
+    near-obstacle states the same way training does -- covers both the far-field (epistemic- …"""
     start, goal, obstacles = scene
     t = rng.uniform(0.0, 1.0)
     pos = start + t * (goal - start) + rng.normal(0, 0.4, size=3)
@@ -85,15 +57,8 @@ def sample_query_state(rng, scene):
 
 def main():
     rng = np.random.default_rng(20260822)
-    # lcb_k=0.25: the deployed calibrated value (recalibrated 2026-08-22 on
-    # the closed-loop campaign after point-mass-only lcb_k=1.50 measured
-    # worse there -- see reproduce_headline.py's docstring) -- must match to
-    # parity-check the LCB port in penn_gamma_selector.cpp, not just the
-    # pre-LCB ensemble/GAT port.
-    # LCB_K: the deployed value (config/params_single_vehicle_cbf_rate_arc.yaml
-    # -> lcb_k). Overridable for an A/B, but the fixture is only a valid
-    # Tier 1 gate when it matches what ships. Deployed default is 0.0 as of
-    # the 2026-08-27 clean-retrain promotion (was 0.25 pre-widening).
+    # lcb_k=0.25: the deployed calibrated value (recalibrated 2026-08-22 on the closed-loop campaign
+    # after point-mass-only lcb_k=1.50 measured worse there -- see reproduce_headline.py's …
     LCB_K = float(os.environ.get("LCB_K", "0.0"))
     # FALLBACK_STEP: config yaml -> penn_fallback_step (deployed 0.5).
     FALLBACK_STEP = float(os.environ.get("FALLBACK_STEP", "0.5"))
@@ -115,26 +80,15 @@ def main():
         pos, vel, goal, obstacles = sample_query_state(rng, scene)
         visible = G.visible_obstacles(pos, obstacles)
         if not visible or len(visible) > MAX_OBS:
-            continue  # skip empty-obstacle states -- select() short-circuits before ever touching the model there
-        # Each parity state is standalone -- reset the ratchet and hand
-        # select() an explicit prev_gamma (sampled across the candidate
-        # range so the fallback ratchet arithmetic is exercised at many
-        # points, not just one). The C++ side reads the same value into
-        # GammaSelectionParams::prev_gamma.
+            continue
+        # skip empty-obstacle states -- select() short-circuits before ever touching the model there
+        # Each parity state is standalone -- reset the ratchet and hand select() an explicit …
         prev_gamma = float(rng.uniform(E.DEPLOY_GAMMA_MIN, E.DEPLOY_GAMMA_MAX))
         policy.reset()
         gamma = policy.select(pos, vel, goal, obstacles, prev_gamma=prev_gamma)
 
-        # BUG (found 2026-08-22 while chasing a parity mismatch): this used
-        # to save `obstacles` (the full, unfiltered scene list) here, while
-        # `visible` (already computed above for the length guard) is what
-        # policy.select() ACTUALLY built its graph from -- select() applies
-        # its own internal G.visible_obstacles() re-filter, so any obstacle
-        # in `obstacles` but not in `visible` (e.g. present but outside the
-        # z-band) got silently included in the saved state despite never
-        # having influenced the saved expected_gamma. The C++ side has no
-        # such internal filter (see selectGamma's comment on why), so it
-        # computed on a different, larger obstacle set than Python did.
+        # BUG (found 2026-08-22 while chasing a parity mismatch): this used to save `obstacles` (the
+        # full, unfiltered scene list) here, while `visible` (already computed above for the …
         pos_l.append(pos.astype(np.float32))
         vel_l.append(vel.astype(np.float32))
         goal_l.append(goal.astype(np.float32))
@@ -166,9 +120,7 @@ def main():
         "gamma_min": E.DEPLOY_GAMMA_MIN,
         "gamma_max_candidate": E.DEPLOY_GAMMA_MAX,
         "gamma_steps": E.DEPLOY_STEPS,
-        # Staleness stamp: hash of the .pt the C++ node loads, at generation
-        # time. penn_gamma_parity_check recomputes this over its weights arg
-        # and refuses to run on mismatch.
+        # Staleness stamp: hash of the .pt the C++ node loads, at generation time.
         "weights_fnv1a64": f"{fnv1a64(DEPLOY_PT):#018x}",  # hex string: torch pickle can't hold uint64
         "checkpoint_name": os.environ.get("CHECKPOINT_NAME", "Quadrotor3D_gat"),
     }

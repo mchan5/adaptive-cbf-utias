@@ -1,24 +1,5 @@
-"""Subprocess orchestration for the stack and for rosbag recording.
-
-Both are plain child processes in their own process group so the whole tree
-can be signalled at once. `ros2 launch` gets SIGINT, then SIGKILL as a
-backstop, then a pkill sweep of the companion-side leaf processes that
-`ros2 launch` is known not to always reap. `ros2 bag record` gets SIGINT
-only -- it needs it to finalise metadata.yaml.
-
-The console can bring up either regime's stack (see `_TARGETS`):
-  * hardware -- cbf_rate_arc_hardware_launch.py. MicroXRCEAgent (over
-    serial), the Livox driver, and the OptiTrack/mocap driver are
-    operator-managed and are NOT started or killed here.
-  * sitl -- cbf_rate_arc_sitl_test_launch.py, which starts PX4 SITL, the
-    gz_x500 world, and MicroXRCEAgent-over-UDP itself, so the SITL sweep
-    list has to reap those too. The px4 match is a FULL PATH
-    (px4_sitl_default/bin/px4), never a bare 'px4' -- taken verbatim from
-    the proven cleanup() in
-    penn_gat_training/tools/run_sitl_repeat_battery.sh.
-
-Nothing here is in the control path; it just starts and stops things.
-"""
+"""Subprocess orchestration for the stack and for rosbag recording. Both are plain child
+processes in their own process group so the whole tree can be signalled at once."""
 
 import os
 import signal
@@ -99,18 +80,8 @@ class _Proc(QObject):
 
 
 class StackLauncher(_Proc):
-    """`ros2 launch` of a CBF companion stack -- hardware or SITL.
-
-    `target` selects the launch file and the teardown sweep list (see
-    `_TARGETS`). `obstacle_source` picks synthetic (manual, fed a frozen
-    scene JSON) vs live LiDAR clustering -- the same vocabulary in both
-    regimes now that the two launch files take symmetric arguments.
-
-    For SITL the console drives an unattended flight: `arm_mode:=auto` so
-    ground_station_stub_node arms the vehicle, with `publish_goal:=false` so
-    the stub does NOT fight the GUI for goal_waypoint. Hardware keeps the
-    launch default (`arm_mode:=operator`) -- the pilot arms.
-    """
+    """`ros2 launch` of a CBF companion stack -- hardware or SITL. `target` selects the launch
+    file and the teardown sweep list (see `_TARGETS`)."""
 
     def __init__(self):
         super().__init__()
@@ -132,9 +103,8 @@ class StackLauncher(_Proc):
                 f'obstacle_source:={obstacle_source}']
         if obstacle_source == 'manual' and scene_path:
             argv.append(f'obstacle_file:={scene_path}')
-        # cbf_cylinder_barrier is a structural param (read once at node
-        # construction), so it can only be set here at launch, not live.
-        # Both the SITL and hardware launch files declare it.
+        # cbf_cylinder_barrier is a structural param (read once at node construction), so it can
+        # only be set here at launch, not live. Both the SITL and hardware launch files declare it.
         argv.append(
             f'cbf_cylinder_barrier:={"true" if cylinder_barrier else "false"}')
         if target == 'sitl':

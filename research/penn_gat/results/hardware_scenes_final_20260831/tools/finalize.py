@@ -1,12 +1,5 @@
-"""
-Assemble the curated 20-scene deliverable once curate.sh has filled
-<final>/scenes/scene_00..19.json.
-
-Writes:
-  scenes_seed20260831.pt      torch list [{start,goal,obstacles[cx,cy,cz,r_phys]}]
-  plan.json                   arc_experiment_gui Plan (campaign tab loads this)
-  README.md
-"""
+"""Assemble the curated 20-scene deliverable once curate.sh has filled
+<final>/scenes/scene_00..19.json."""
 import glob
 import json
 import os

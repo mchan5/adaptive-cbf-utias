@@ -1,12 +1,5 @@
-// Closed-loop trend check: replay the frozen test scenes through the real
-// RateAutopilotCore + rigid-body integration (8 scenes x 4 arms: PENN-adaptive
-// plus three fixed gammas), asking whether a gamma calibrated on the point-mass
-// trainer still holds once it steers thrust and body rates through the joint QP.
-// Not a seeded campaign. Runs on an overridden ROS clock for speed + determinism.
-// Integration per tick (Core has no integrator; PX4 physics fills this on-vehicle):
-//   R_{k+1} = R_k * Exp(omega*dt);  v_{k+1} = v_k + ((T/m) R_k e3 - g e3)*dt;
-//   p_{k+1} = p_k + v_{k+1}*dt      (commanded body rate assumed achieved instantly)
-// Obstacles are re-filtered to the sensing envelope every tick (no omniscience).
+// Closed-loop trend check: replay the frozen test scenes through the real RateAutopilotCore +
+// rigid-body integration (8 scenes x 4 arms: PENN-adaptive plus three fixed gammas), asking …
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -77,10 +70,6 @@ std::vector<Scene> loadScenes(const std::string& path) {
   return scenes;
 }
 
-// Phase B (2026-08-22): a seed-partitioned campaign directory, one
-// scenes_seed<N>.pt file per TEST_SEED (diag_gen_closed_loop_scenes.py's
-// CAMPAIGN=1 mode). seed=-1 marks the single-file (non-campaign) mode's
-// one "seed" for uniform downstream handling.
 struct SeedScenes {
   int seed;
   std::vector<Scene> scenes;
@@ -108,9 +97,7 @@ std::vector<SeedScenes> loadSeedSource(const std::string& path) {
   return out;
 }
 
-// Obstacle model for this run. CYLINDER_BARRIER set (any value) -> the
-// vertical-cylinder barrier plus horizontal-only clearance scoring; unset ->
-// the original sphere barrier and full 3-D scoring. Read once.
+// Obstacle model for this run.
 const bool g_cylinder_barrier = std::getenv("CYLINDER_BARRIER") != nullptr;
 
 // Distance from `pos` to an obstacle centre, projected to the horizontal plane
@@ -120,19 +107,13 @@ double obstacleCenterDist(const Eigen::Vector3d& pos, const Eigen::Vector3d& cen
 }
 
 RateAutopilotCore::Params baseParams() {
-  // Loads config/params_single_vehicle_cbf_rate_arc.yaml -- the SAME file
-  // the deployed node ships with -- so this harness measures the config
-  // that actually flies, not a hand-maintained snapshot. See
-  // deploy_yaml_params.hpp for why (2026-08-29 config-drift audit,
-  // PLAN_adaptive_hardening_20260829.md Phase 0.1). Fails loudly if the
-  // YAML is missing. Set DEPLOY_YAML to point it elsewhere.
+  // Loads config/params_single_vehicle_cbf_rate_arc.yaml -- the SAME file the deployed node ships
+  // with -- so this harness measures the config that actually flies, not a hand-maintained …
   RateAutopilotCore::Params p;
   diagtools::loadDeployedParams(p);
   p.cbf_cylinder_barrier = g_cylinder_barrier;
 
-  // Env-var A/B overrides, applied ON TOP of the deployed values. Each
-  // exists to sweep one axis away from deployment without editing the YAML;
-  // an unset var leaves the deployed value untouched.
+  // Env-var A/B overrides, applied ON TOP of the deployed values.
   if (const char* env = std::getenv("NOM_ACCEL_MAX")) p.nom_accel_max = std::atof(env);
   if (const char* env = std::getenv("NOM_POS_KP")) p.nom_pos_kp = std::atof(env);
   if (const char* env = std::getenv("NOM_VEL_KD")) p.nom_vel_kd = std::atof(env);
@@ -145,9 +126,6 @@ RateAutopilotCore::Params baseParams() {
   if (const char* env = std::getenv("PENN_GAMMA_STEPS")) {
     p.penn_gamma_steps = std::atoi(env);
   }
-  // PENN_UPDATE_TICKS (2026-08-26, PLAN_adaptive_recovery §1.4 A/B check):
-  // requery cadence in control ticks (control_rate_hz=100, so 10 == 10Hz,
-  // 1 == every tick / control-rate re-selection, 100 == 1Hz).
   if (const char* env = std::getenv("PENN_UPDATE_TICKS")) {
     p.penn_update_ticks = std::atoi(env);
   }
@@ -163,11 +141,6 @@ RateAutopilotCore::Params baseParams() {
   if (const char* env = std::getenv("CONTINUITY_WEIGHT")) {
     p.continuity_weight = std::atof(env);
   }
-  // FALLBACK_STEP (2026-08-26, PLAN_adaptive_recovery §1.1 A/B check):
-  // ratchet step size for the conservative fallback. FALLBACK_STEP=0 with
-  // penn_gamma_min == whatever the floor is reproduces "always fall back
-  // to gamma_min", not the old circular rule -- the old rule no longer
-  // exists in this binary to A/B against directly.
   if (const char* env = std::getenv("FALLBACK_STEP")) {
     p.fallback_step = std::atof(env);
   }
@@ -177,9 +150,6 @@ RateAutopilotCore::Params baseParams() {
   }
   p.deadlock_threshold = 1.0e9;  // vestigial, never gates -- see penn_gamma_selector.cpp
 
-  // ESCAPE_SEARCH=0 disables the multi-direction escape search, reverting
-  // to the original single fixed perpendicular nudge -- keeps the 2026-08-22
-  // ablation reproducible.
   if (const char* env = std::getenv("ESCAPE_SEARCH")) {
     p.escape_search_enabled = (std::atoi(env) != 0);
   }
@@ -213,36 +183,17 @@ struct EpisodeResult {
   double min_h_margin{std::numeric_limits<double>::infinity()};    // clearance to safety-margin buffer
   bool infeasible_any{false};
   int n_ticks{0};
-  // Ticks where gamma_used != cbf_gamma_obs (the fallback value), i.e. PENN
-  // actually selected the gain this tick rather than the tick falling back
-  // (beyond penn_proximity_gate_m, no obstacles in view, or inference
-  // failure). Only meaningful for the adaptive arm -- see the duty-cycle
-  // caution in the closed-loop diagnostic writeup: most of a typical
-  // episode is spent beyond the 3m proximity gate, so a large gap between
-  // this and n_ticks means the "adaptive" arm is mostly running the fixed
-  // fallback gain, not PENN.
+  // Ticks where gamma_used != cbf_gamma_obs (the fallback value), i.e. PENN actually selected the
+  // gain this tick rather than the tick falling back (beyond penn_proximity_gate_m, no obstacles …
   int n_penn_active_ticks{0};
   // Mean gamma_used across every tick (PENN-selected AND fallback ticks).
-  // Added 2026-08-23 to investigate why the adaptive arm underperforms a
-  // constant gamma=3.0 despite a real oracle showing headroom above it --
-  // this is the cheapest way to see what the selector is actually doing at
-  // scale, without a per-tick log dump per episode.
   double mean_gamma_used{0.0};
 };
 
 EpisodeResult runEpisode(const Scene& scene, RateAutopilotCore::Params params, double dt,
                           double max_time_s, bool debug_ticks = false) {
   auto logger = rclcpp::get_logger("body_rate_closed_loop_diag");
-  // Simulated clock, advanced by exactly dt per tick (2026-08-22). This
-  // harness originally slept dt of REAL time per tick, purely because
-  // RateAutopilotCore's stall/escape logic reads elapsed time off this
-  // clock and a tight loop would starve it of any time to measure against.
-  // That capped a full 8-scene x 4-arm run at ~13 wall-clock minutes and
-  // made a seeded campaign (thousands of episodes) impractical. Overriding
-  // ROS time instead gives the controller exactly the same perceived
-  // elapsed time while running at compute speed, and is strictly MORE
-  // reproducible than wall-clock: stall detection no longer depends on how
-  // long the QP happened to take on a given machine.
+  // Simulated clock, advanced by exactly dt per tick (2026-08-22).
   auto clock = std::make_shared<rclcpp::Clock>(RCL_ROS_TIME);
   rcl_enable_ros_time_override(clock->get_clock_handle());
   int64_t sim_time_ns = 1000000000LL;  // start at t=1s, not 0, so time deltas are well-defined
@@ -251,14 +202,8 @@ EpisodeResult runEpisode(const Scene& scene, RateAutopilotCore::Params params, d
 
   params.waypoint = scene.goal;
   RateAutopilotCore core(params, logger, clock);
-  // Hard-fail rather than warn: RateAutopilotCore's own loadPennModel()
-  // warns-and-falls-back on a bad model path, which is the right behavior
-  // for a flying vehicle but means an arm claiming penn_enabled can
-  // silently run pure fixed-gamma with no error at all. A diagnostic
-  // campaign that measures "the adaptive policy" must know it actually got
-  // it -- added 2026-08-23 after exactly this happened silently (relative
-  // weights path didn't resolve; caught only because deadlock counts
-  // didn't match a frozen reference, not by anything in this harness).
+  // Hard-fail rather than warn: RateAutopilotCore's own loadPennModel() warns-and-falls-back on a
+  // bad model path, which is the right behavior for a flying vehicle but means an arm claiming …
   if (params.penn_enabled && !core.pennModelLoaded()) {
     std::fprintf(stderr,
                   "FATAL: penn_enabled=true but PENN model failed to load from '%s' -- "
@@ -326,40 +271,8 @@ EpisodeResult runEpisode(const Scene& scene, RateAutopilotCore::Params params, d
   return result;
 }
 
-// GREEDY_SWITCH mode (2026-08-24): measures the headroom available from
-// letting gamma vary WITHIN an episode, not just picking one constant value
-// per scene. The oracle_gap sweep (fixed gamma 3-10, per-scene-best vs
-// best-single-value) found a real 10.4% gap driven by QP-infeasibility
-// incidence rising with gamma -- but that oracle still only ever picks ONE
-// gamma for the whole episode. This asks the bigger question: how much of
-// that gap (and how much MORE) is available if the vehicle can drop gamma
-// approaching clutter and raise it once clear.
-//
-// Implementation: a receding-horizon greedy switcher, re-decided every
-// decision_interval_ticks. At each decision point, roll forward
-// horizon_ticks under EVERY candidate gamma from a THROWAWAY clone of the
-// real state (fresh RateAutopilotCore, same pos/vel/R/obstacles) purely to
-// SCORE the candidates; the winning gamma is then applied to the one
-// PERSISTENT core that actually drives the committed trajectory, via
-// setFixedGamma() rather than reconstruction, so the real trajectory never
-// loses controller-internal state (T_ hover-thrust integrator, stall/escape
-// timers) across a switch. First implementation replayed the winning
-// rollout clone's own trace as the committed trajectory instead -- that
-// silently reset T_ to hover thrust and zeroed every internal timer at
-// EVERY decision boundary (every decision_interval_ticks), which is why the
-// first pilot run scored worse than a plain constant-gamma episode even
-// with only one candidate gamma available. Caught via that exact sanity
-// check (single-candidate GREEDY_SWITCH should reduce to runEpisode; it
-// didn't, by a wide margin) before trusting any switching-headroom number.
-//
-// The scoring clones still start fresh each decision point (cheap, and
-// necessarily so -- they're hypothetical futures under untaken candidates,
-// not the real trajectory). This biases every candidate's score by the same
-// reset-to-hover/reset-timers transient at a given decision point, which
-// washes out of the ARGMIN comparison (relative ranking, not absolute
-// magnitude) -- but it does mean scores are not comparable to
-// episodeCost()/runEpisode() results, only to each other within one
-// decision.
+// GREEDY_SWITCH mode (2026-08-24): measures the headroom available from letting gamma vary WITHIN
+// an episode, not just picking one constant value per scene.
 struct WindowResult {
   Eigen::Vector3d pos;
   bool infeasible_any{false};
@@ -454,13 +367,8 @@ EpisodeResult runEpisodeGreedySwitch(const Scene& scene, RateAutopilotCore::Para
       break;
     }
 
-    // Proximity gate (mirrors pennSelectAlpha's real gating logic exactly:
-    // CENTER distance, not surface distance, to whichever obstacle is
-    // closest) -- added after the first pilot run found 4/50 hard
-    // collisions from switching gamma mid-close-encounter. Re-selection is
-    // only allowed beyond the gate; inside it, the controller holds
-    // whatever gamma it last committed to, exactly like the deployed PENN
-    // selector's fallback-to-fixed behavior near obstacles.
+    // Proximity gate (mirrors pennSelectAlpha's real gating logic exactly: CENTER distance, not
+    // surface distance, to whichever obstacle is closest) -- added after the first pilot run …
     double min_center_dist = std::numeric_limits<double>::infinity();
     for (const auto& o : scene.obstacles) {
       min_center_dist = std::min(min_center_dist, obstacleCenterDist(pos, o.center));
@@ -479,18 +387,8 @@ EpisodeResult runEpisodeGreedySwitch(const Scene& scene, RateAutopilotCore::Para
 
         const double progress = dist_before - (scene.goal - wr.pos).norm();
         double score = -progress;
-        // The infeasibility penalty is env-tunable (default 1.0 = the
-        // original behavior) because at the original fixed 1.0 this mode was
-        // degenerate: over a decision window, progress differences between
-        // candidate gammas are centimeters (~1e-2) while this flat penalty is
-        // 1.0, i.e. two orders of magnitude larger. That makes the score
-        // "minimize infeasibility" rather than "maximize progress subject to
-        // safety", and it always returns candidate_gammas.front(). Verified
-        // 2026-08-25: horizons of 20/60/150/300 ticks and candidate sets of 4
-        // and 8 gammas all produced byte-identical episodes at mean gamma
-        // exactly 3.0 (the lowest candidate). Set GREEDY_INFEASIBLE_PENALTY=0
-        // to measure the actual within-episode switching headroom, which the
-        // degenerate scorer had made unmeasurable.
+        // The infeasibility penalty is env-tunable (default 1.0 = the original behavior) because at
+        // the original fixed 1.0 this mode was degenerate: over a decision window, progress …
         if (wr.infeasible_any) score += infeasible_penalty;
         if (wr.min_h_margin < 0.0) score += 1000.0;  // safety veto
 
@@ -501,9 +399,6 @@ EpisodeResult runEpisodeGreedySwitch(const Scene& scene, RateAutopilotCore::Para
       }
     }
 
-    // Commit: drive the PERSISTENT real core forward under the winning
-    // gamma (or the held gamma if gated), preserving all internal
-    // controller state across the switch.
     if (best_idx >= 0) current_gamma = candidate_gammas[best_idx];
     real_core.setFixedGamma(current_gamma);
     const int commit = std::min(decision_interval_ticks, max_steps - ticks_done);
@@ -554,9 +449,8 @@ EpisodeResult runEpisodeGreedySwitch(const Scene& scene, RateAutopilotCore::Para
 namespace {
 
 double episodeCost(const EpisodeResult& r, double max_time_s) {
-  // Mirrors eval_scene_distribution.cost(): margin-unsafe episodes get a
-  // large fixed penalty (so a fast-but-grazing arm never wins on cost),
-  // otherwise cost is just time-to-goal.
+  // Mirrors eval_scene_distribution.cost(): margin-unsafe episodes get a large fixed penalty (so a
+  // fast-but-grazing arm never wins on cost), otherwise cost is just time-to-goal.
   return r.min_h_margin < 0.0 ? 2.0 * max_time_s : r.t_goal;
 }
 
@@ -584,11 +478,8 @@ int main(int argc, char** argv) {
   const double dt = 1.0 / 100.0;
   const double max_time_s = 25.0;  // matches eval_scene_distribution.py's MAX_STEPS*DT (500*0.05)
 
-  // GREEDY_SWITCH=1: measures within-episode gamma-switching headroom (see
-  // runEpisodeGreedySwitch's comment). Separate top-level mode -- doesn't
-  // fit the Arm abstraction below since it isn't a single fixed policy.
-  // GREEDY_GAMMAS/GREEDY_HORIZON/GREEDY_INTERVAL override the candidate set
-  // / lookahead ticks / re-decide-every-N-ticks cadence.
+  // GREEDY_SWITCH=1: measures within-episode gamma-switching headroom (see runEpisodeGreedySwitch's
+  // comment).
   if (std::getenv("GREEDY_SWITCH") != nullptr) {
     std::vector<double> gammas = {3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
     if (const char* list = std::getenv("GREEDY_GAMMAS")) {
@@ -654,20 +545,8 @@ int main(int argc, char** argv) {
     bool penn_enabled;
     double fixed_gamma;
   };
-  // GAMMA_SWEEP=1 replaces the standard arm set with a fine sweep of fixed
-  // gammas -- used to locate the deadlock boundary empirically and test the
-  // gamma^3 feasible-set-collapse prediction (see the barrier-chain analysis
-  // in the project notes: at rest, the QP's control budget is ~gamma^3*h,
-  // so low gamma should deadlock and high gamma should not).
-  //
-  // GAMMA_LIST="0.5,1.5,2.5,3.0" overrides the swept values. Added
-  // 2026-08-23 to test whether penn_gamma_max=2.5 is a BINDING constraint:
-  // the campaign's best fixed arm was 2.5 on 7/7 seeds -- i.e. the optimum
-  // sits exactly at the top of the candidate range, which is the classic
-  // signature of a range cap that is costing performance. The training
-  // distribution covers GAMMA_RANGE=(0.2, 3.5) (drone_data_generation.py),
-  // so values up to 3.5 are still in-distribution for the checkpoint and
-  // can be tested without extrapolating the model.
+  // GAMMA_SWEEP=1 replaces the standard arm set with a fine sweep of fixed gammas -- used to locate
+  // the deadlock boundary empirically and test the gamma^3 feasible-set-collapse prediction (see …
   std::vector<Arm> arms;
   if (std::getenv("GAMMA_SWEEP") != nullptr) {
     std::vector<double> gammas;
@@ -690,30 +569,12 @@ int main(int argc, char** argv) {
       arms.push_back({buf, false, g});
     }
   } else if (std::getenv("ADAPTIVE_ONLY") != nullptr) {
-    // Parameter sweeps (LCB_K=...) only need the adaptive arm: the
-    // fixed-gamma arms don't read lcb_k at all, so re-running them once per
-    // swept value is ~75% wasted compute and produces byte-identical rows
-    // every time. Selection metrics (hard collisions, deadlocks,
-    // margin-violations) are all adaptive-arm-only; the fixed arms are
-    // needed only for the paired-speed reference in the final measurement
-    // run, which uses the full arm set.
+    // Parameter sweeps (LCB_K=...) only need the adaptive arm: the fixed-gamma arms don't read
+    // lcb_k at all, so re-running them once per swept value is ~75% wasted compute and produces …
     arms = {{"adaptive(PENN)", true, 0.0}};
   } else {
-    // FIXED_ARMS="0.5,1.5,2.5,3.0" overrides the fixed-gamma baseline set.
-    //
-    // Added 2026-08-23 because the hardcoded default below is only a FAIR
-    // baseline while penn_gamma_max == 2.5. The adaptive arm is compared
-    // against whichever fixed arm scores best per seed, so if the policy's
-    // own candidate range extends above the best available fixed arm, the
-    // comparison silently favours it: adaptive can select gains the
-    // baseline is never allowed to use. After penn_gamma_max was raised to
-    // 3.0, a fixed=3.0 arm therefore has to be in this set -- an extended
-    // sweep measured fixed gamma=3.0 at +5.18% paired vs 2.5 on the
-    // calibration seeds, i.e. the omitted arm is materially stronger than
-    // the strongest one present, not a rounding difference.
-    //
-    // Keep this set spanning at least [penn_gamma_min, penn_gamma_max]
-    // whenever that range changes.
+    // FIXED_ARMS="0.5,1.5,2.5,3.0" overrides the fixed-gamma baseline set. Added 2026-08-23 because
+    // the hardcoded default below is only a FAIR baseline while penn_gamma_max == 2.5.
     std::vector<double> fixed_gammas;
     if (const char* list = std::getenv("FIXED_ARMS")) {
       std::string s(list);
@@ -726,12 +587,8 @@ int main(int argc, char** argv) {
         pos = comma + 1;
       }
     } else {
-      // Must span at least [penn_gamma_min, penn_gamma_max] (now 2.0..9.5,
-      // read from the deployed YAML) or the paired-speed comparison
-      // silently favours the adaptive arm -- it can select gains no fixed
-      // arm here is allowed to use. This set mirrors the deployed
-      // checkpoint's training support {2, 3.5, 5, 6.5, 8, 9.5}. Override
-      // with FIXED_ARMS for a different baseline.
+      // Must span at least [penn_gamma_min, penn_gamma_max] (now 2.0..9.5, read from the deployed
+      // YAML) or the paired-speed comparison silently favours the adaptive arm -- it can select …
       fixed_gammas = {2.0, 3.5, 5.0, 6.5, 8.0, 9.5};
     }
     arms.push_back({"adaptive(PENN)", true, 0.0});
@@ -758,11 +615,8 @@ int main(int argc, char** argv) {
   std::printf("%zu seed(s), %zu arms, dt=%.3fs, max_time=%.1fs, simulated-clock replay\n\n",
               seed_sets.size(), arms.size(), dt, max_time_s);
 
-  // Per-episode rows are only worth printing at small scale (the original
-  // 8-scene sanity gate, or a GAMMA_SWEEP run) -- at campaign scale (1400+
-  // episodes) they're noise; the CSV has full per-episode detail and the
-  // per-seed/aggregate tables below are what a campaign run should be read
-  // from.
+  // Per-episode rows are only worth printing at small scale (the original 8-scene sanity gate, or a
+  // GAMMA_SWEEP run) -- at campaign scale (1400+ episodes) they're noise; the CSV has full per- …
   size_t total_episodes = 0;
   for (const auto& ss : seed_sets) total_episodes += ss.scenes.size() * arms.size();
   const bool verbose = total_episodes <= 64;
@@ -772,9 +626,6 @@ int main(int argc, char** argv) {
     std::printf("--------------------------------------------------------------------------\n");
   }
 
-  // per_seed_arm[seed_index][arm_index] = episode results for that
-  // (seed, arm), in scene order -- feeds both the per-seed table and the
-  // grand-total aggregate below.
   std::vector<std::vector<std::vector<EpisodeResult>>> per_seed_arm(seed_sets.size());
 
   for (size_t si = 0; si < seed_sets.size(); ++si) {
@@ -786,14 +637,8 @@ int main(int argc, char** argv) {
       params.penn_enabled = arms[a].penn_enabled;
       if (arms[a].penn_enabled) {
         params.penn_model_path = penn_model_path;
-        // cbf_gamma_obs is the FALLBACK gamma used whenever PENN does not
-        // run -- beyond penn_proximity_gate_m (3m) from the nearest
-        // obstacle, with no obstacles in view, or on inference failure.
-        // That is most of a typical episode, so it is not a minor default.
-        // The deployed value is taken from the YAML by baseParams() (see the
-        // 2026-08-22 harness-bug postmortem: this used to silently inherit
-        // fixed_gamma=0.0 for this arm, the worst possible value). Override
-        // with CBF_GAMMA_OBS for an A/B.
+        // cbf_gamma_obs is the FALLBACK gamma used whenever PENN does not run -- beyond
+        // penn_proximity_gate_m (3m) from the nearest obstacle, with no obstacles in view, or on …
         if (const char* env = std::getenv("CBF_GAMMA_OBS")) {
           params.cbf_gamma_obs = std::atof(env);
         }
@@ -802,10 +647,8 @@ int main(int argc, char** argv) {
       }
 
       for (size_t s = 0; s < scenes.size(); ++s) {
-        // DEBUG_SCENE=<index>, added 2026-08-23 for the entry-certification
-        // investigation: prints gamma_used/feasible/closest-obstacle every
-        // tick for exactly one scene index, to see the mechanism behind a
-        // hard collision directly instead of guessing from aggregate stats.
+        // DEBUG_SCENE=<index>, added 2026-08-23 for the entry-certification investigation: prints
+        // gamma_used/feasible/closest-obstacle every tick for exactly one scene index, to see the …
         const char* dbg = std::getenv("DEBUG_SCENE");
         const bool debug_ticks = dbg != nullptr && std::atoi(dbg) == static_cast<int>(s);
         if (debug_ticks) {
@@ -830,11 +673,8 @@ int main(int argc, char** argv) {
       }
     }
 
-    // Per-seed summary, mirroring reproduce_headline.py's table: hard
-    // collisions, margin-violations, and paired speed vs. whichever fixed
-    // arm had the lowest mean cost on THIS seed (not a single hardcoded
-    // reference gamma -- matches the point-mass convention's per-seed best-
-    // constant selection).
+    // Per-seed summary, mirroring reproduce_headline.py's table: hard collisions, margin-
+    // violations, and paired speed vs. whichever fixed arm had the lowest mean cost on THIS seed …
     if (adaptive_idx >= 0 && arms.size() > 1) {
       int best_fixed = -1;
       double best_cost = std::numeric_limits<double>::infinity();

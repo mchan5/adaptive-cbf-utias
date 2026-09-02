@@ -1,38 +1,5 @@
-"""
-gen_hardware_scenes_20260831.py
-
-Generate the 20-scene hardware test set for the fixed-vs-adaptive-gamma
-single_vehicle_cbf_rate_arc campaign.
-
-Fixed decisions (2026-08-31, with the project owner):
-  * Fixed start / goal for all 20 scenes, chosen to sit clear of the arena
-    net and to force a diagonal crossing of the obstacle band.
-  * Every obstacle is IDENTICAL, matching config/obstacles.json:
-    physical radius 0.06 m (0.12 m diameter), centre height z = OBST_Z.
-  * obs_safety_margin = 0.5 m (deployed YAML) => each obstacle carries a
-    ~0.56 m keep-out bubble. A physically-narrow gap is therefore a
-    reroute / hold test, not a fly-through test.
-  * Split: 12 "passable" scenes  (every obstacle pair >= PASS_GAP centre-to
-    -centre, i.e. the controller can fly between them) and 8 "reroute"
-    scenes (at least one pair in [REROUTE_LO, REROUTE_HI] centre-to-centre
-    -- sub-margin, must be routed around; all other pairs still passable).
-  * Obstacle-count mix across the 20: 5x2, 6x3, 5x4, 3x5, 1x6 (mean 3.5).
-    Reroute scenes are drawn only from n_obs >= 3.
-
-Outputs (under results/hardware_scenes_20260831/):
-  * scenes_seed20260831.pt   -- campaign format for body_rate_closed_loop_diag
-                                and the SITL replay harness. Obstacle tensor
-                                rows are [cx, cy, cz, radius_phys] (NO margin
-                                baked in -- matches loadScenes()).
-  * hardware/scene_XX.json    -- flat [x, y, z, diameter, ...] per scene, the
-                                exact contract config/obstacles.json uses
-                                (synthetic_obstacle_publisher reads field 4
-                                as DIAMETER and adds obs_safety_margin itself).
-  * MANIFEST.csv             -- id, class, n_obs, and the three clearance
-                                stats that every scene was checked against.
-
-Deterministic: master seed 20260831, one derived seed per scene.
-"""
+"""Generate the 20-scene hardware test set for the fixed-vs-adaptive-gamma
+single_vehicle_cbf_rate_arc campaign."""
 import csv
 import json
 import os

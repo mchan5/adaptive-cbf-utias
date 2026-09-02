@@ -23,21 +23,6 @@ CertificationResult isEntryCertified(const QuadState& state, const Eigen::Vector
                                       bool cylinder_mode = false);
 
 // Tracks which obstacles have been entry-certified, and UNDER WHAT GAMMA.
-// Originally certified once at first sighting and trusted forever
-// (known_ids_, a plain set) -- fixed 2026-08-23 after a real hard collision
-// (dense_20260921 scene 25) traced to exactly this: a certified obstacle
-// becomes a HARD, zero-slack QP constraint (body_rate_qp_osqp.cpp splits
-// certified vs uncertified_barrier_info this way), so a certification
-// computed under the gamma active at first sighting being trusted after
-// gamma later changes means the QP can be forced to satisfy a constraint
-// under dynamics the forward-invariance proof was never checked against for
-// that obstacle. Confirmed mechanistically: no single FIXED gamma (1.3-8.0)
-// ever produces a collision in that scene; only the adaptive arm, which is
-// the only one that changes gamma mid-approach, does. Tolerable at the old
-// [0.5,2.5] range (max absolute swing 2.0); not at [1.3,8.0] (swing 6.7).
-// No Python counterpart exists to keep in parity with (entry_certification_
-// gate.py is not present in this repo -- point-mass has no analogous
-// certified/uncertified split at all), so this is a C++-only fix.
 class ObstacleRegistry {
  public:
   ObstacleRegistry(double g1, double g2, double m, bool cylinder_mode = false)
@@ -50,11 +35,7 @@ class ObstacleRegistry {
     g2_ = g2;
   }
 
-  // Returns {certified, chain}. chain is empty only in the fast path (known,
-  // already certified under the CURRENT g1/g2 -- no re-evaluation needed);
-  // populated whenever certification was freshly (re-)computed, whether or
-  // not it succeeded, matching the original contract callers rely on to log
-  // a failed-certification warning.
+  // Returns {certified, chain}.
   struct RegisterResult {
     bool certified{false};
     std::optional<BarrierChain> chain;
@@ -67,10 +48,7 @@ class ObstacleRegistry {
   double g2_;
   double m_;
   bool cylinder_mode_{false};
-  // obstacle_id -> (g1,g2) it is currently certified under. Absent means
-  // never certified (either never seen, or last attempt failed -- a failed
-  // obstacle stays uncertified/soft, the safe default, and is retried the
-  // next time gamma changes rather than permanently given up on).
+  // obstacle_id -> (g1,g2) it is currently certified under.
   std::map<int, std::pair<double, double>> certified_gammas_;
 };
 

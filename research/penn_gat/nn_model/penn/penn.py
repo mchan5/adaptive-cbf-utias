@@ -1,9 +1,5 @@
-"""
-    Neural Network Dynamics with the following options implented:
-        1. Stochastic inference using [mean, std_dev] split
-        2. Truely parallel ensemble
-        3. API for encoding historical state-action pairs
-"""
+"""Neural Network Dynamics with the following options implented: 1. Stochastic inference using
+[mean, std_dev] split 2. Truely parallel ensemble 3."""
 import torch
 import torch.nn as nn
 import numpy as np
@@ -45,17 +41,8 @@ class EnsembleStochasticLinear(torch.nn.Module):
         elif activation == 'softplus':
             self.act = nn.Softplus()
         self.log_std_min = -20
-        # cap sigma at exp(3.6)≈36.6 -- data-driven from drone_data_100000.pkl's
-        # target channels (progress_deficit std 0.64/max 8.1; min_h_horizon std
-        # 1.49/max 37.1). The old ceiling (exp(-2)≈0.135) sat ~275x below the
-        # larger channel's max, so gaussian_nll_loss's NLL-optimal variance
-        # exceeded it for nearly every sample and log_std saturated at the cap
-        # for almost all inputs regardless of scene -- a degenerate, near-
-        # constant aleatoric head (measured sigma ~0.1353 in production). This
-        # ceiling is sized to the larger-scale channel (min_h_horizon) and
-        # shared across both channels rather than per-channel, since a wider
-        # ceiling doesn't hurt the smaller-scale channel and per-channel bounds
-        # would require touching every mu/sigma consumer (Python + C++ port).
+        # cap sigma at exp(3.6)≈36.6 -- data-driven from drone_data_100000.pkl's target channels
+        # (progress_deficit std 0.64/max 8.1; min_h_horizon std 1.49/max 37.1).
         self.log_std_max = 3.6
 
     def forward(self, x):

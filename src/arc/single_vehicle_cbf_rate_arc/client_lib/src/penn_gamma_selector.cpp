@@ -17,14 +17,8 @@
 
 namespace nodelib {
 
-// Diagnostic-only selection-path counters, added 2026-08-23 to investigate
-// why the adaptive policy underperforms a constant gamma=3.0 despite a real
-// oracle showing headroom above it. selectGamma() has two paths: GATED
-// (passes epistemic+cvar, ranked by predicted progress_deficit -- i.e.
-// speed-aware) and FALLBACK (nothing passed both gates, ranked by predicted
-// min_h alone -- pure safety, ignores speed entirely). If FALLBACK fires
-// often, that's a direct, mechanistic explanation for a slow-but-safe
-// selector. Gated behind PENN_SELECTOR_STATS so it costs nothing when unset.
+// Diagnostic-only selection-path counters, added 2026-08-23 to investigate why the adaptive policy
+// underperforms a constant gamma=3.0 despite a real oracle showing headroom above it.
 std::atomic<long> g_gated_count{0};
 std::atomic<long> g_fallback_count{0};
 
@@ -38,25 +32,8 @@ void printPennSelectorStats() {
 
 namespace {
 
-// SELECTION_RULE env switch, added 2026-08-23 (range-widening plan, Phase 1).
-// The gates (epistemic + cvar) decide which candidates are SAFE; this only
-// changes how the safe set is ranked. Diagnosed root cause: the deployed
-// min_deficit rule chooses a mean gamma well below the oracle's usual pick
-// (the top of the candidate range, on both the narrow and the newly-widened
-// range) -- the network was trained on point-mass, where per-scene gamma
-// diversity is real and rewards hedging, but body-rate's landscape is much
-// flatter, so hedging mostly just costs speed. These alternatives test
-// whether a different ranking recovers parity with the best fixed gamma
-// without touching the network at all.
-//   min_deficit (default): argmin predicted progress_deficit -- unchanged
-//     behavior, reproduces every existing result bit-for-bit when unset.
-//   max_gamma: ignore the performance prediction entirely, pick the highest
-//     gated-safe gamma. This is an upper bound on what ranking alone can
-//     achieve -- it can reach parity with the best fixed constant (that IS
-//     what "always pick the top of the safe range" means) but not exceed
-//     it, since it carries no scene-specific information.
-//   blend: argmin (predicted progress_deficit - BLEND_BETA * gamma), a
-//     tunable compromise between the two.
+// SELECTION_RULE env switch, added 2026-08-23 (range-widening plan, Phase 1). The gates (epistemic
+// + cvar) decide which candidates are SAFE; this only changes how the safe set is ranked.
 enum class SelectionRule { kMinDeficit, kMaxGamma, kBlend };
 
 SelectionRule selectionRuleFromEnv() {
@@ -118,19 +95,8 @@ std::vector<char> readFile(const std::string& path) {
   return std::vector<char>((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 }
 
-// Sensing envelope -- mirrors drone_data_generation.py's visible_obstacles()
-// / lidar_obstacle_publisher_node.py's max_range_m/z_min_m/z_max_m defaults.
-// Added 2026-08-22: AdaptivePolicy.select() (Python) defensively re-filters
-// its obstacle input by this same envelope before building a graph, even
-// though real deployment already expects /arc/obstacles to be pre-filtered
-// upstream by whichever obstacle publisher is running. selectGamma() had no
-// equivalent, so it and the Python reference could disagree whenever a
-// caller (or a test harness) handed either implementation an obstacle
-// outside the sensing envelope -- found via a parity-check mismatch that
-// turned out not to be a code bug in either implementation, but this
-// missing defensive filter plus a bug in the test harness that saved an
-// unfiltered obstacle list. Kept here for defense-in-depth/parity even
-// though the real obstacle source should already filter.
+// Sensing envelope -- mirrors drone_data_generation.py's visible_obstacles() /
+// lidar_obstacle_publisher_node.py's max_range_m/z_min_m/z_max_m defaults.
 constexpr double kSensorMaxRange = 8.0;
 constexpr double kSensorZMin = 0.1;
 constexpr double kSensorZMax = 2.5;
@@ -206,9 +172,8 @@ struct PennGammaSelector::Impl {
     robot_radius = get("robot_radius").item<double>();
   }
 
-  // robot_vel_norm: matches ProbabilisticEnsembleGAT.v_max_norm in
-  // nn_gat_iccbf_predict.py -- a hardcoded normalisation constant, not
-  // something persisted in the checkpoint, so it's hardcoded here too.
+  // robot_vel_norm: matches ProbabilisticEnsembleGAT.v_max_norm in nn_gat_iccbf_predict.py -- a
+  // hardcoded normalisation constant, not something persisted in the checkpoint, so it's …
   static constexpr double kRobotVelNorm = 3.0;
 
   torch::Tensor buildRobotEdgeFeatures(const Eigen::Vector3d& pos_enu, const Eigen::Vector3d& vel_enu_in,
@@ -218,19 +183,8 @@ struct PennGammaSelector::Impl {
     const int n_obs = static_cast<int>(obstacles.size());
     const int num_edges = n_obs + 1;  // each obstacle, plus the goal
 
-    // Frame canonicalization (ported from gat_3d.py's _canonicalize_frame,
-    // 2026-08-22): rotate about z so (goal - pos) points along +x, before
-    // deriving any feature. Every edge attribute below is a raw [dx,dy,dz]
-    // difference plus a raw [vx,vy,vz] velocity, and NEITHER is rotation-
-    // invariant on its own even though both are "relative" quantities --
-    // only the derived scalar distances (already rotation-invariant) were
-    // safe as-is. This C++ port never had the fix that gat_3d.py got: a
-    // scene rotated 90 degrees is physically identical but was measured to
-    // flip the selected gamma on 59% of scenes. Rotating each edge's
-    // difference vector directly is mathematically identical to rotating
-    // the absolute positions first and then differencing (rotation is
-    // linear: R(a)-R(b) = R(a-b)), so this reproduces gat_3d.py's result
-    // without restructuring this function around absolute coordinates.
+    // Frame canonicalization (ported from gat_3d.py's _canonicalize_frame, 2026-08-22): rotate
+    // about z so (goal - pos) points along +x, before deriving any feature. Every edge attribute …
     const double ryaw = goal.y() - pos_enu.y();
     const double rxaw = goal.x() - pos_enu.x();
     const double yaw = std::atan2(ryaw, rxaw);
@@ -282,16 +236,8 @@ struct PennGammaSelector::Impl {
       // x_dst == obstacle_j (7): one-hot(3), prox(1), vel(3, hardcoded 0)
       r[8] = 1.0f;
       r[10] = static_cast<float>(dist_robot_obs[j]);
-      // edge_attr (7): [dx,dy,dz,dist,dvx,dvy,dvz] -- ported from
-      // gat_3d.py's create_graph as [pos[dst]-pos[src], dist, vel[dst]-
-      // vel[src]] for edge (src=robot, dst=this obstacle), i.e.
-      // obstacle_pos - robot_pos and obstacle_vel(=0) - robot_vel. Fixed
-      // 2026-08-22: this used to compute pos_enu - obstacles[j].center
-      // (src-dst, backwards) and +vel_enu (should be -vel_enu since
-      // obstacle_vel is 0) -- both differential terms were sign-flipped
-      // relative to the Python reference, silently, since this port was
-      // first written (independent of the frame-canonicalization and
-      // missing-velocity-feature bugs fixed the same day).
+      // edge_attr (7): [dx,dy,dz,dist,dvx,dvy,dvz] -- ported from gat_3d.py's create_graph as
+      // [pos[dst]-pos[src], dist, vel[dst]- vel[src]] for edge (src=robot, dst=this obstacle), …
       Eigen::Vector3d d = obstacles[j].center - pos_enu;
       {
         const auto [rdx, rdy] = rot_xy(d.x(), d.y());
@@ -385,11 +331,8 @@ struct PennGammaSelector::Impl {
   std::optional<double> selectGamma(const Eigen::Vector3d& pos_enu, const Eigen::Vector3d& vel_enu,
                                      const std::vector<ObstacleInput>& obstacles_raw,
                                      const GammaSelectionParams& params) const {
-    // Defensive re-filter to the sensing envelope, matching
-    // AdaptivePolicy.select() -- see filterVisible's comment. In real
-    // deployment /arc/obstacles should already be filtered upstream, but
-    // this keeps the two implementations agreeing even if a caller (or a
-    // test) hands in something that isn't.
+    // Defensive re-filter to the sensing envelope, matching AdaptivePolicy.select() -- see
+    // filterVisible's comment.
     const std::vector<ObstacleInput> obstacles = filterVisible(pos_enu, obstacles_raw);
     if (obstacles.empty()) {
       return std::nullopt;
@@ -403,18 +346,8 @@ struct PennGammaSelector::Impl {
           buildRobotEdgeFeatures(pos_enu, vel_enu, obstacles, params.goal, &rotated_vel);
       const torch::Tensor robot_emb = extractRobotEmbedding(zij);  // (1,16)
 
-      // Direct robot-velocity bypass feature (ported 2026-08-22 -- this was
-      // missing entirely, which is the actual root cause of PENN inference
-      // throwing on every call and silently falling back to a fixed gamma,
-      // previously misattributed to the epistemic gate rejecting everything
-      // in the 2026-08-10 investigation this diagnostic tool was built for.
-      // See nn_gat_iccbf_predict.py's _robot_vel_feature / gat_3d.py's
-      // extract_robot_velocity docstring: added 2026-08-19, after this C++
-      // port was written, to give the performance head a direct path to
-      // velocity that the pooled graph embedding wasn't preserving.
-      // Normalised by the SAME hardcoded v_max_norm=3.0 Python uses, and
-      // built from the frame-canonicalized velocity so it's consistent
-      // with every other feature in this function.
+      // Direct robot-velocity bypass feature (ported 2026-08-22 -- this was missing entirely, which
+      // is the actual root cause of PENN inference throwing on every call and silently falling …
       const torch::Tensor robot_vel = torch::tensor(
           {static_cast<float>(rotated_vel.x() / kRobotVelNorm),
            static_cast<float>(rotated_vel.y() / kRobotVelNorm),
@@ -433,11 +366,8 @@ struct PennGammaSelector::Impl {
       const EnsembleOutputs out = ensembleForward(X_input);
       const torch::Tensor mean_over_ensemble = out.mus.mean(0);  // (steps,2): col0=deadlock, col1=risk
 
-      // LCB inputs for the risk channel (index 1): var_al = mean ensemble-
-      // member variance (aleatoric), var_ep = variance of ensemble means
-      // (epistemic disagreement about the mean) -- law of total variance,
-      // mirrors AdaptivePolicy.select()'s var_al/var_ep exactly
-      // (eval_scene_distribution.py:271-273).
+      // LCB inputs for the risk channel (index 1): var_al = mean ensemble-member variance
+      // (aleatoric), var_ep = variance of ensemble means (epistemic disagreement about the mean) …
       const torch::Tensor mu_ch1 = out.mus.select(2, 1);            // (E, steps)
       const torch::Tensor log_std_ch1 = out.log_stds.select(2, 1);  // (E, steps)
       const torch::Tensor var_al_t = log_std_ch1.exp().pow(2).mean(0);        // (steps,)
@@ -449,28 +379,8 @@ struct PennGammaSelector::Impl {
       const auto var_al_acc = var_al_t.accessor<float, 1>();
       const auto var_ep_acc = var_ep_t.accessor<float, 1>();
 
-      // Gate every candidate (epistemic, then risk), then take the argmin
-      // predicted deadlock/performance among those that pass -- matches
-      // AdaptivePolicy.select() in eval_scene_distribution.py, NOT the old
-      // "largest gamma down, first feasible" rule this used to implement
-      // (2026-08-22 fix: that rule was never what got validated).
-      //
-      // Sign convention on cvar_boundary ALSO flipped 2026-08-22: mean_risk
-      // is the risk head's prediction, and the head's training TARGET
-      // changed 2026-08-21 from risk_horizon (an accumulated-violation-time
-      // integral, >=0, low=safe -- "mean_risk < cvar_boundary" was the
-      // correct accept condition under that label) to min_h_horizon (the
-      // worst instantaneous barrier value over the horizon -- unbounded,
-      // LOW/NEGATIVE=dangerous). Reusing the old "<" comparison against a
-      // min_h-trained head would accept the candidates the model is most
-      // confident are UNSAFE. See drone_data_generation.py's worker() and
-      // eval_scene_distribution.py's AdaptivePolicy.select() for the
-      // matching Python-side change.
-      //
-      // deadlock_threshold is no longer a separate gate: the validated
-      // harness never gates on it, only ranks by it among already-safe
-      // candidates, so keeping it as a second hard gate here was an
-      // undocumented extra constraint the offline validation never tested.
+      // Gate every candidate (epistemic, then risk), then take the argmin predicted
+      // deadlock/performance among those that pass -- matches AdaptivePolicy.select() in …
       const SelectionRule rule = selectionRuleFromEnv();
       const double blend_beta = blendBetaFromEnv();
 
@@ -522,10 +432,8 @@ struct PennGammaSelector::Impl {
         return candidates_acc[best_gated_idx][0];
       }
       g_fallback_count.fetch_add(1, std::memory_order_relaxed);
-      // Conservative ratchet (2026-08-26, PLAN_adaptive_recovery §1.1):
-      // no candidate was trustworthy, so degrade monotonically toward
-      // gamma_min instead of consulting the model's own (just-rejected)
-      // risk ranking. Matches online_adaptive_cbf.py's fallback rule.
+      // Conservative ratchet (2026-08-26, PLAN_adaptive_recovery §1.1): no candidate was
+      // trustworthy, so degrade monotonically toward gamma_min instead of consulting the model's …
       const double ratcheted = params.prev_gamma - params.fallback_step;
       return std::max(params.gamma_min, ratcheted);
     } catch (const std::exception& e) {
@@ -591,11 +499,8 @@ struct PennGammaSelector::Impl {
         }
         row.passed_epistemic =
             !(params.epistemic_threshold > 0 && row.divergence > params.epistemic_threshold);
-        // Matches selectGamma's corrected gate (2026-08-22): reject BELOW
-        // cvar_boundary now (min_h semantics), and deadlock_threshold is no
-        // longer a hard gate -- see selectGamma's comment for why. Field
-        // name kept as passed_deadlock_risk for minimal API churn; it now
-        // reflects the risk gate alone.
+        // Matches selectGamma's corrected gate (2026-08-22): reject BELOW cvar_boundary now (min_h
+        // semantics), and deadlock_threshold is no longer a hard gate -- see selectGamma's …
         row.passed_deadlock_risk = row.mean_risk >= params.cvar_boundary;
         table.push_back(row);
       }

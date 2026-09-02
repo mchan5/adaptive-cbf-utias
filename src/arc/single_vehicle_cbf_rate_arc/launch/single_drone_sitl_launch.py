@@ -63,16 +63,8 @@ def generate_launch_description():
     )
     px4_executable = substitutions.PathJoinSubstitution([px4_dir, "px4"])
 
-    # Only forward vars that are actually set in the parent shell -- these are
-    # opportunistic passthroughs, not requirements. Two failure modes to avoid:
-    # (1) a bare EnvironmentVariable() with no default raises at launch-build
-    #     time if the var is merely absent, killing the whole stack; (2) an
-    #     empty-string default is NOT equivalent to "unset" for GZ_CONFIG_PATH
-    #     -- `gz` treats "" as "no config search paths" and can't find its own
-    #     sim plugin (`gz sim --versions` fails), which is worse than unset
-    #     (unset falls back to gz's built-in defaults). So skip the key
-    #     entirely -- via plain os.environ, resolved once at launch-build
-    #     time -- rather than passing a substitution with any default.
+    # Only forward vars that are actually set in the parent shell -- these are opportunistic
+    # passthroughs, not requirements.
     passthrough_env = {
         it: os.environ[it]
         for it in [
@@ -81,10 +73,8 @@ def generate_launch_description():
             "GZ_CONFIG_PATH",
             "GZ_SIM_RESOURCE_PATH",
             "LD_LIBRARY_PATH",
-            # HEADLESS=1 tells PX4's gz launch to start `gz sim` with no GUI
-            # -- required for unattended batteries (authority sweep). Without
-            # it in this passthrough set, ExecuteProcess's replaced env drops
-            # it and Gazebo brings up a window per cycle.
+            # HEADLESS=1 tells PX4's gz launch to start `gz sim` with no GUI -- required for
+            # unattended batteries (authority sweep).
             "HEADLESS",
         ]
         if it in os.environ
@@ -113,9 +103,8 @@ def generate_launch_description():
                     "PX4_UXRCE_DDS_NS": substitutions.LaunchConfiguration(
                         "uav_namespace", default=""
                     ),
-                    # This harness has neither RC nor a GCS connected, so disable
-                    # the "no data link" arming block (see rcAndDataLinkCheck.cpp)
-                    # -- rcS applies any PX4_PARAM_<NAME> env var via `param set`.
+                    # This harness has neither RC nor a GCS connected, so disable the "no data link"
+                    # arming block (see rcAndDataLinkCheck.cpp) -- rcS applies any …
                     "PX4_PARAM_NAV_DLL_ACT": "0",
                 },
                 output="screen",

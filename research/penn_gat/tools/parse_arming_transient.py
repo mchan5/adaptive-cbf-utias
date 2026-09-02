@@ -1,18 +1,5 @@
-"""
-parse_arming_transient.py
-
-Parses Tier 4b (arming-transient stress test) SITL logs -- see
-run_arming_transient_sweep.sh and TESTING.md. No obstacles, no goal, so
-"overshoot" is detected directly from odometry rather than
-reached_goal/hard_collision: a cycle is flagged OVERSHOOT if position
-departs more than OVERSHOOT_RADIUS_M from the spawn point, or altitude (z)
-goes outside [Z_MIN, Z_MAX], within the short observation window. Also
-surfaces the two auxiliary signals found by hand on 2026-08-24
-(integration-clamp warnings, QP-infeasible tick count) for cross-checking.
-
-Usage:
-    python parse_arming_transient.py <runs_dir>
-"""
+"""Parses Tier 4b (arming-transient stress test) SITL logs -- see run_arming_transient_sweep.sh
+and TESTING.md."""
 import os
 import re
 import sys

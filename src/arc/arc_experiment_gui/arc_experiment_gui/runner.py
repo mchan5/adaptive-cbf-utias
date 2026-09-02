@@ -1,14 +1,4 @@
-"""Per-trial state machine for the campaign runner.
-
-One trial =
-  set arm params -> (SITL) fly back to start -> start rosbag ->
-  publish mission goal -> wait for `reached` / timeout / abort ->
-  stop rosbag -> operator confirms outcome -> append manifest row -> next.
-
-Driven by a 250 ms QTimer plus the live CbfDiagnostics stream. Nothing here
-touches the control loop; it only sets parameters, publishes a goal, and
-records a bag.
-"""
+"""Per-trial state machine for the campaign runner."""
 
 import os
 import shlex
@@ -19,9 +9,6 @@ import time
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal
 
 # Optional per-trial screen/camera capture (Phase 5, opt-in, hardware demos).
-# Set ARC_TRIAL_RECORD_CMD to a command template containing "{out}"; it is run
-# at bag-start and SIGINT'd at bag-stop. Example:
-#   export ARC_TRIAL_RECORD_CMD='ffmpeg -y -f x11grab -i :0 {out}/screen.mp4'
 _RECORD_CMD = os.environ.get('ARC_TRIAL_RECORD_CMD', '')
 
 # Fixed SITL corridor (spawn ~origin, goal hard-coded in the launch stack).
@@ -131,9 +118,8 @@ class TrialRunner(QObject):
 
     def _dist_to(self, xyz):
         d = self._last_diag
-        # diag carries dist_to_goal for the *current* waypoint; for the
-        # return-to-start leg we set that waypoint to START, so dist_to_goal
-        # is exactly what we want. GOAL leg likewise.
+        # diag carries dist_to_goal for the *current* waypoint; for the return-to-start leg we set
+        # that waypoint to START, so dist_to_goal is exactly what we want. GOAL leg likewise.
         return None if d is None else d.dist_to_goal
 
     def _tick(self):

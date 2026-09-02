@@ -1,22 +1,4 @@
-"""arc_experiment_gui -- single-screen operator console.
-
-One screen, no tabs. Three columns follow the trial workflow left to right:
-
-  prepare  (session connect, scene, gamma-arm, pre-flight)
-  watch    (top-down corridor + vehicle state)
-  record   (coverage matrix + event log)
-
-The safety strip (min-obstacle-distance) and the status chips are pinned
-always-on above the columns. One START RUN button runs the whole per-trial
-sequence -- push arm params, push scene obstacles, return to start, record a
-bag, publish the goal, wait, confirm the outcome, append manifest.json.
-
-Nothing here is ever in the drone's control path: it subscribes best-effort,
-writes parameters only at safe moments, and launches / records as killable
-child process groups. See EXPERIMENT_GUI_PLAN_20260829.md s1.
-
-Run:  ros2 run arc_experiment_gui dashboard [--ros-args -p uav_prefix:=uav_0]
-"""
+"""arc_experiment_gui -- single-screen operator console. One screen, no tabs."""
 
 import glob
 import json
@@ -59,9 +41,6 @@ _ALARM_M = 0.30
 _WARN_M = 1.00
 
 # START RUN sequence -- maps a runner phase to a step index in the stepper.
-# The return-to-start leg only runs in SITL (no pilot to reposition the
-# vehicle between trials); on hardware the pilot positions the vehicle and
-# flips OFFBOARD on the RC, so that step is skipped and shows ticked.
 _SEQ = [
     ('set_params', 'push arm params to CBF node (penn / γ)'),
     ('set_scene', 'push scene obstacles (param, no relaunch)'),
@@ -83,9 +62,8 @@ def _slug(text):
 
 
 def _scene_dir():
-    # ARC_SCENE_DIR overrides the packaged set -- point it at a frozen
-    # results dir (e.g. .../hardware_scenes_final_20260831/scenes) to fly
-    # that scene set without re-copying files into the package.
+    # ARC_SCENE_DIR overrides the packaged set -- point it at a frozen results dir (e.g.
+    # .../hardware_scenes_final_20260831/scenes) to fly that scene set without re-copying files …
     env = os.environ.get('ARC_SCENE_DIR')
     if env:
         return os.path.expanduser(env)
@@ -105,10 +83,7 @@ def _yaw_from_quat(q):
 
 
 def _set_style(w, s):
-    """setStyleSheet only when the string actually changes. An unconditional
-    call forces a full style re-polish of the widget subtree; doing that for
-    ~15 status labels at 2 Hz plus one at 5 Hz is a visible input-latency
-    drag on a software-rendered (WSLg) session."""
+    """setStyleSheet only when the string actually changes."""
     if w.styleSheet() != s:
         w.setStyleSheet(s)
 
@@ -153,10 +128,8 @@ class OutcomeDialog(QDialog):
         return self._combo.currentText(), self._notes.text()
 
 
-# Companion-stack nodes to show a health dot for, by regime. Union is built
-# once; _slow_tick only checks/shows the ones for the active regime.
-# graph_node_names() strips namespaces, so bare node names match in every
-# regime (SITL nodes live under /uav_0 but report by bare name).
+# Companion-stack nodes to show a health dot for, by regime. Union is built once; _slow_tick only
+# checks/shows the ones for the active regime.
 _HEALTH_COMMON = (
     ('autopilot_sv_cbf_rate_node', 'cbf_rate_node'),
 )
@@ -247,9 +220,8 @@ class Console(QWidget):
 
     # top bar
     def _build_topbar(self):
-        # Two stacked rows so the strip never forces a wide minimum window:
-        # row 1 = controls, row 2 = status chips. Each row wraps its content
-        # tightly and lets the window shrink to the wider of the two.
+        # Two stacked rows so the strip never forces a wide minimum window: row 1 = controls, row 2
+        # = status chips.
         outer = QVBoxLayout()
         outer.setSpacing(4)
 
@@ -914,19 +886,10 @@ def main(argv=None):
     spin.start()
 
     app = QApplication([argv[0]])
-    # Dark theme via Fusion + a QPalette rather than an app-wide
-    # `QWidget{...}` style sheet. An app-level QWidget rule routes every
-    # widget through QStyleSheetStyle, which is markedly slower to polish and
-    # paint than the native style -- on a software-rendered WSLg session that
-    # shows up as laggy hovers/clicks. Fusion honours the palette fully and
-    # stays on the fast paint path; the only style sheet left is a narrow
-    # QGroupBox cosmetic rule.
+    # Dark theme via Fusion + a QPalette rather than an app-wide `QWidget{...}` style sheet.
     app.setStyle('Fusion')
-    # Baseline font bump -- a QFont-level change like the palette below, not a
-    # blanket QWidget{...} style sheet, so it stays on the fast paint path.
-    # The default point size on this WSLg session renders noticeably smaller
-    # than every per-widget pixel size chosen throughout this file, which is
-    # why the whole console reads as cramped even where nothing is styled.
+    # Baseline font bump -- a QFont-level change like the palette below, not a blanket QWidget{...}
+    # style sheet, so it stays on the fast paint path.
     _font = app.font()
     _font.setPointSize(max(_font.pointSize(), 10))
     app.setFont(_font)
@@ -951,20 +914,16 @@ def main(argv=None):
     app.setStyleSheet(
         'QGroupBox{border:1px solid #333;margin-top:8px;}'
         'QGroupBox::title{subcontrol-origin:margin;left:8px;padding:0 3px;}'
-        # One rule so every plain button (connect / apply live / zip / dialog
-        # OK) shares the same proportions instead of Fusion's tight default
-        # padding -- _btn_run keeps its own bigger, colour-filled style below
-        # since it's the one primary action, everything else should match.
+        # One rule so every plain button (connect / apply live / zip / dialog OK) shares the same
+        # proportions instead of Fusion's tight default padding -- _btn_run keeps its own bigger, …
         'QPushButton{padding:5px 14px;min-height:20px;}'
         'QComboBox{padding:3px 6px;min-height:20px;}'
         'QLineEdit,QDoubleSpinBox{padding:3px 4px;min-height:20px;}')
     win = Console(node)
     win.setWindowTitle('ARC Operator Console')
 
-    # Open at the layout's natural size but never larger than 90% of the
-    # screen; if even the widget's own minimum doesn't fit, maximise instead.
-    # (The topbar is two short rows and the side columns are narrow so this
-    # minimum stays well under a normal screen.)
+    # Open at the layout's natural size but never larger than 90% of the screen; if even the
+    # widget's own minimum doesn't fit, maximise instead.
     avail = app.primaryScreen().availableGeometry()
     hint = win.sizeHint()
     cap_w, cap_h = int(avail.width() * 0.9), int(avail.height() * 0.9)

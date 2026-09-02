@@ -7,11 +7,8 @@ from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 import yaml
 
-# single_vehicle_cbf_rate_arc is a single merged C++ node (bridge + CBF-QP +
-# PENN/GAT, all in one process/one timer -- see the port plan). Unlike the
-# Python single_vehicle_cbf_rate stack, there is no second
-# cbf_rate_obstacle_controller node/process to launch, and no venv
-# PYTHONPATH to append: libtorch is linked into the executable at build time.
+# single_vehicle_cbf_rate_arc is a single merged C++ node (bridge + CBF-QP + PENN/GAT, all in one
+# process/one timer -- see the port plan).
 
 
 def _make_node(context, *args, **kwargs):
@@ -30,9 +27,7 @@ def _make_node(context, *args, **kwargs):
 
     node_parameters = [autopilot_params, {"uav_prefix": uav_prefix}]
 
-    # Optional runtime override for the obstacle model. Empty (default) keeps
-    # the YAML's cbf_cylinder_barrier value; "true"/"false" forces it, so a
-    # single SITL run can A/B sphere vs vertical-cylinder without editing YAML.
+    # Optional runtime override for the obstacle model.
     raw = LaunchConfiguration("cbf_cylinder_barrier").perform(context).strip().lower()
     if raw in ("true", "1", "false", "0"):
         node_parameters.append({"cbf_cylinder_barrier": raw in ("true", "1")})

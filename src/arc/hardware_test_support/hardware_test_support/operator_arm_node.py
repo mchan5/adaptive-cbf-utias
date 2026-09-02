@@ -1,23 +1,5 @@
 #!/usr/bin/env python3
-"""Real-hardware analog of sitl_test_support's ground_station_stub_node.
-
-sitl_test_support's ground_station_stub_node auto-arms 5s after startup with
-a hardcoded waypoint -- fine for an unattended SITL run, not acceptable on
-real hardware. This node instead waits for an explicit, operator-published
-confirmation (a single std_msgs/Bool on operator/arm_confirm, e.g. via
-`ros2 topic pub -1 <uav_prefix>/operator/arm_confirm std_msgs/msg/Bool
-"{data: true}"` or a real ground-control button) before switching to offboard
-mode and arming. Each rising edge on that topic triggers one arm attempt --
-it does not repeat automatically the way the SITL stub's retry loop does, so
-a stuck attempt doesn't silently keep firing arm commands.
-
-The waypoint itself is not published here: single_vehicle_cbf_rate_arc reads
-waypoint_x/y/z directly as its own node parameters (see
-single_vehicle_cbf_rate_client.cpp), so unlike ground_station_stub_node this
-node does not publish a PositionControllerReference/CBF_flag/ENU_flag --
-those topics are for the older non-rate autopilot stack, which
-single_vehicle_cbf_rate_arc's node does not subscribe to.
-"""
+"""Real-hardware analog of sitl_test_support's ground_station_stub_node."""
 
 import rclpy
 from rclpy.node import Node
@@ -38,13 +20,8 @@ class OperatorArmNode(Node):
             depth=1)
 
         self._vehicle_command_pub = self.create_publisher(VehicleCommand, 'fmu/in/vehicle_command', cmd_qos)
-        # Matches single_vehicle_cbf_rate_client.cpp's vehicle_status_sub_ topic --
-        # verify against the real Pixhawk's firmware build before flying; PX4
-        # v1.15.4's SITL checkout publishes unversioned vehicle_status only
-        # (both _v1 and _v4 have zero publishers -- see px4_config/README.md's
-        # "vehicle_status_v1 vs v4" section). A version mismatch here only
-        # affects this node's own armed-state tracking, not the CBF node's,
-        # but it will make retry/logging below wrong.
+        # Matches single_vehicle_cbf_rate_client.cpp's vehicle_status_sub_ topic -- verify against
+        # the real Pixhawk's firmware build before flying; PX4 v1.15.4's SITL checkout publishes …
         self.create_subscription(VehicleStatus, 'fmu/out/vehicle_status', self._on_vehicle_status, cmd_qos)
         self.create_subscription(Bool, 'operator/arm_confirm', self._on_arm_confirm, 10)
 

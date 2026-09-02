@@ -1,11 +1,5 @@
-"""ROS 2 side of the experiment GUI.
-
-A single rclpy node, spun in its own QThread, that forwards the telemetry the
-dashboard needs as Qt signals. Read-only in Phase 1 -- it only subscribes.
-Nothing here is in the control path (see EXPERIMENT_GUI_PLAN_20260829.md s1):
-every subscription uses a shallow, best-effort-tolerant QoS so a slow GUI can
-never back-pressure a publisher.
-"""
+"""ROS 2 side of the experiment GUI. A single rclpy node, spun in its own QThread, that forwards
+the telemetry the dashboard needs as Qt signals. Read-only in Phase 1 -- it only subscribes."""
 
 from rclpy.node import Node
 from rclpy.executors import SingleThreadedExecutor
@@ -103,10 +97,8 @@ class TelemetryNode(Node, QObject):
             Odometry, f'{p}/state_estimator/local_position/odom', self._on_odom, _best_effort(10))
         self.create_subscription(
             MarkerArray, '/arc/obstacles', self._on_obstacles, _obstacles_qos())
-        # Unversioned -- PX4 v1.15.4's SITL checkout has zero publishers on
-        # both vehicle_status_v1 and _v4 (see px4_config/README.md's
-        # "vehicle_status_v1 vs v4" section); this is why ARM/OFFBOARD chips
-        # were stuck at "?" even while the vehicle was genuinely armed.
+        # Unversioned -- PX4 v1.15.4's SITL checkout has zero publishers on both vehicle_status_v1
+        # and _v4 (see px4_config/README.md's "vehicle_status_v1 vs v4" section); this is why …
         self.create_subscription(
             VehicleStatus, f'{p}/fmu/out/vehicle_status', self._on_status, _px4_out(10))
         self.create_subscription(
@@ -120,10 +112,8 @@ class TelemetryNode(Node, QObject):
         self._set_cli = self.create_client(
             SetParameters, f'{self.cbf_node_name}/set_parameters')
 
-        # Scene switching: push the frozen-scene obstacle list to the
-        # synthetic obstacle publisher as its 'obstacles' param. That node
-        # re-reads the param every tick, so this takes effect with no
-        # relaunch. Still not in the control path -- a rare, deliberate write.
+        # Scene switching: push the frozen-scene obstacle list to the synthetic obstacle publisher
+        # as its 'obstacles' param.
         self.obs_node_name = self.declare_parameter(
             'obstacle_node', f'{p}/synthetic_obstacle_publisher').value
         self._obs_set_cli = self.create_client(
@@ -136,12 +126,8 @@ class TelemetryNode(Node, QObject):
         self._goal_pub = self.create_publisher(PointStamped, f'{p}/goal_waypoint', goal_qos)
         self._arm_pub = self.create_publisher(Bool, f'{p}/operator/arm_confirm', 1)
 
-        # Graph / service-discovery state, refreshed on a timer that runs
-        # INSIDE the executor thread. get_node_names_and_namespaces() and
-        # service_is_ready() take the rmw graph lock, which the DDS discovery
-        # thread also holds -- calling them straight from the Qt thread (the
-        # old _slow_tick / _on_ui_tick did, 5x/s) stalls the UI for tens to
-        # hundreds of ms at a time. The GUI thread now only reads this cache.
+        # Graph / service-discovery state, refreshed on a timer that runs INSIDE the executor
+        # thread.
         self._graph_cache = {
             'node_names': set(),
             'params_ready': False,

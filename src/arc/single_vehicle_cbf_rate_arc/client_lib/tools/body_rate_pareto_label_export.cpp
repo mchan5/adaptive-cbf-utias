@@ -1,56 +1,5 @@
-// Phase 2 of the Pareto-reframe plan (2026-08-25, see the "Pareto Reframe"
-// plan artifact from today): episode-level adaptive selection failed in
-// five formulations because its headroom hides in rare events invisible at
-// t=0 (see frozen_widerange_20260824/MANIFEST.md). Per-state switching does
-// not have that problem -- an oracle version of it (this project's own
-// runEpisodeGreedySwitch, corrected: see body_rate_closed_loop_diag.cpp's
-// GREEDY_INFEASIBLE_PENALTY comment for the scorer bug that made it
-// unmeasurable until today) beats fixed gamma=8@a8 by 18.7% time at
-// identical margin violations on 350 held-out standard-distribution scenes.
-//
-// This tool exports PER-DECISION-POINT training labels from that same
-// corrected oracle, so PENN+GAT can be trained to approximate it from
-// observable state alone (no privileged future-rollout access) instead of
-// being trained on the old point-mass, whole-episode-from-rest labels.
-//
-// Design mirrors runEpisodeGreedySwitch (body_rate_closed_loop_diag.cpp)
-// exactly -- same decision loop, same proximity gate, same committed
-// trajectory -- so the labels come from the states the winning policy
-// actually visits, not an arbitrary distribution. At each decision point
-// this ALSO does what runEpisodeGreedySwitch's throwaway scoring clones do,
-// but records the outcome for every candidate as a training row instead of
-// only using it to pick the winner:
-//   - progress_deficit: max(0, ideal_progress - actual_progress) over the
-//     decision window, ideal_progress = min(v_max*window_s, dist_before).
-//     v_max=3.0, matching drone_data_generation.py's label convention (see
-//     body_rate_horizon_label_export.cpp's Stage-1 comment for why this
-//     constant must match exactly).
-//   - min_h_horizon: min over the window of h = ||p-c||^2 - r_eff^2
-//     (SQUARED form, r_eff = physical_radius + obs_safety_margin), at the
-//     PRE-MOVE position each tick -- same convention as Stage 1's
-//     body_rate_horizon_label_export.cpp, verified against
-//     drone_data_generation.py:469-486 by direct read.
-//
-// Difference from Stage 1: R0 there was identity (no attitude source
-// available for arbitrary point-mass-matched query states). Here the
-// window rollout starts from the REAL current attitude of the real running
-// episode, because this tool generates its own episode rather than
-// replaying externally-supplied query states -- exactly the
-// "self-consistent body-rate-carrier-sourced R0" the original plan flagged
-// as required before any Stage-2 label is trusted.
-//
-// Obstacle visibility filter matches worker()'s obs_visible gate: rows are
-// only emitted at decision points where at least one obstacle is currently
-// sensed, because the deployed selector is never queried otherwise
-// (obstacle_cbf_node.py short-circuits to the default gamma when
-// self._obstacles is empty) -- an empty-obstacle graph sample is a state
-// distribution the deployed system would never produce.
-//
-// Output is a flat CSV, not a pickle -- graph construction (edge_index/
-// edge_attr via GATModule3D.create_graph) stays in Python exactly as
-// worker() already does it, so the pickle schema train_drone.py reads is
-// reproduced with zero changes to that file. See
-// penn_gat_training/pareto_label_csv_to_pickle.py for the CSV->pickle step.
+// Phase 2 of the Pareto-reframe plan (2026-08-25, see the "Pareto Reframe" plan artifact from
+// today): episode-level adaptive selection failed in five formulations because its headroom hides …
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -153,12 +102,8 @@ RateAutopilotCore::Params baseParams() {
   p.obs_d_min = 1.0;
   p.obs_safety_margin = 0.5;
   p.control_rate_hz = 100.0;
-  // Corrected 2026-08-26 (PLAN_adaptive_recovery §0.2): this tool's
-  // defaults were (13.0, 6.5, 6.5), the exact operating point an earlier
-  // SITL investigation rejected -- the entire Pareto campaign
-  // (frozen_widerange_20260824, pareto_phase1/2_20260825) was generated at
-  // an authority setting the project doesn't ship. Matches
-  // body_rate_closed_loop_diag.cpp's validated corrected-authority value.
+  // Corrected 2026-08-26 (PLAN_adaptive_recovery §0.2): this tool's defaults were (13.0, 6.5, 6.5),
+  // the exact operating point an earlier SITL investigation rejected -- the entire Pareto …
   p.nom_accel_max = std::getenv("NOM_ACCEL_MAX") ? std::atof(std::getenv("NOM_ACCEL_MAX")) : 12.0;
   p.nom_pos_kp = std::getenv("NOM_POS_KP") ? std::atof(std::getenv("NOM_POS_KP")) : 6.0;
   p.nom_vel_kd = std::getenv("NOM_VEL_KD") ? std::atof(std::getenv("NOM_VEL_KD")) : 6.0;
@@ -214,11 +159,8 @@ struct LabelResult {
   bool infeasible_any{false};
 };
 
-// Mirrors simulateWindow (body_rate_closed_loop_diag.cpp) exactly for the
-// trajectory/feasibility side, and rolloutLabel
-// (body_rate_horizon_label_export.cpp) exactly for the squared-h/progress-
-// deficit label side -- this is genuinely both at once, computed together
-// so the two tools' formulas don't have to be kept in sync by hand.
+// Mirrors simulateWindow (body_rate_closed_loop_diag.cpp) exactly for the trajectory/feasibility
+// side, and rolloutLabel (body_rate_horizon_label_export.cpp) exactly for the squared-h/progress- …
 LabelResult scoreCandidate(const Scene& scene, RateAutopilotCore::Params params, double dt,
                             const Eigen::Vector3d& pos0, const Eigen::Vector3d& vel0,
                             const Eigen::Matrix3d& R0, int64_t sim_time_ns0, int max_ticks,
@@ -292,11 +234,8 @@ int main(int argc, char** argv) {
   const double max_time_s = 25.0;
   const int max_steps = static_cast<int>(max_time_s / dt);
 
-  // Widened 4 -> 6 candidates (2026-08-26, PLAN_adaptive_recovery §2.1):
-  // the Pareto set's 4-candidates/state training data was still 33.8%
-  // gamma-invariant on min_h; more candidates per state raises the odds a
-  // given decision point actually shows within-state contrast on top of
-  // the decision-weight emission gate above. Still overridable via GAMMAS.
+  // Widened 4 -> 6 candidates (2026-08-26, PLAN_adaptive_recovery §2.1): the Pareto set's
+  // 4-candidates/state training data was still 33.8% gamma-invariant on min_h; more candidates …
   std::vector<double> candidate_gammas = {2.0, 3.5, 5.0, 6.5, 8.0, 9.5};
   if (const char* list = std::getenv("GAMMAS")) {
     candidate_gammas.clear();
@@ -365,19 +304,8 @@ int main(int argc, char** argv) {
 
         if (min_center_dist > proximity_gate_m) {
           const auto visible = visibleObstacles(pos, scene.obstacles);
-          // Decision-weight emission (2026-08-26, PLAN_adaptive_recovery
-          // §2.2): port of drone_data_generation.py's _decision_weight().
-          // The old gate emitted a row at EVERY decision point with a
-          // visible obstacle inside proximity_gate_m, uniformly -- most of
-          // that 3m band is cruise-through space where gamma doesn't change
-          // the outcome (measured: 33.8%/50.0% gamma-invariant labels in
-          // the data this produced, body_rate_label_test_20260825). This
-          // instead accepts a decision point with probability rising
-          // exponentially as the nearest visible obstacle's EFFECTIVE
-          // boundary (radius+margin, not center) is approached, plus a
-          // floor so moderate-clearance states are still sampled sometimes
-          // -- same decay/floor constants as the point-mass generator by
-          // default, overridable for this exporter specifically.
+          // Decision-weight emission (2026-08-26, PLAN_adaptive_recovery §2.2): port of
+          // drone_data_generation.py's _decision_weight().
           double emit_prob = 0.0;
           if (!visible.empty()) {
             double min_gap = std::numeric_limits<double>::infinity();
@@ -401,13 +329,8 @@ int main(int argc, char** argv) {
               p.cbf_gamma_obs = candidate_gammas[ci];
               labels[ci] = scoreCandidate(scene, p, dt, pos, vel, R, sim_time_ns, window, margin);
 
-              // Minimizing progress_deficit is equivalent to maximizing raw
-              // progress (same ideal_progress for every candidate at a given
-              // decision point, since window length is shared) -- matches
-              // runEpisodeGreedySwitch's winning scorer at
-              // GREEDY_INFEASIBLE_PENALTY=0 (infeasibility term dropped,
-              // safety veto kept). min_h_horizon<0 is the squared-form
-              // equivalent of that scorer's min_h_margin<0 veto.
+              // Minimizing progress_deficit is equivalent to maximizing raw progress (same
+              // ideal_progress for every candidate at a given decision point, since window length …
               double score = labels[ci].progress_deficit;
               if (labels[ci].min_h_horizon < 0.0) score += 1000.0;
               if (score < best_score) {

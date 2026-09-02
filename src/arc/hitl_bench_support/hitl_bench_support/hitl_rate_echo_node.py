@@ -1,52 +1,6 @@
 #!/usr/bin/env python3
-"""Shadow-HITL bench echo: forward the SITL vehicle's body-rate commands to a
-real, PROPS-OFF Pixhawk so its motors spin with the simulated flight.
-
-  gz_x500 physics --> PX4 SITL (uav_0, MicroXRCEAgent udp4:8888)
-       |  odom
-       v
-  autopilot_sv_cbf_rate_node  (CBF-QP + PENN/GAT)
-       |  vehicle_rates_setpoint + offboard_control_mode @100 Hz
-       +-----------------> SITL PX4 (flies the sim)
-       |
-       +--> hitl_rate_echo_node  (this node)
-                |  re-stamp, clamp, gate, deadman
-                v  MicroXRCEAgent serial /dev/ttyTHS1 @921600 (uav_bench)
-           REAL Pixhawk (armed, PROPS OFF, strapped down)
-                v
-           REAL motors spin
-
-This is a BENCH TEST, not a flight test. It closes the electrical/firmware
-half of the loop -- the real serial DDS link at 100 Hz, the real arming and
-OFFBOARD state machine, the real mixer -> ESC -> motor chain -- but NOT the
-physics: real thrust does not move the simulated vehicle. Fly nothing on
-this node.
-
-What it does per the safety contract:
-
-  * re-stamp `timestamp` with THIS machine's wall clock. SITL PX4 runs on
-    lockstepped sim-time; the real board runs wall-time and rejects
-    OFFBOARD setpoints it considers stale. Passing the sim timestamp
-    through is the most likely failure mode, so we never do.
-  * clamp normalised thrust magnitude to `thrust_clamp_norm` (default
-    0.15). Props are off; this is belt-and-braces against a commanded
-    full-throttle spinning an unloaded motor to destruction.
-  * gate on an explicit rising edge of `<bench_prefix>/bench_enable`
-    (std_msgs/Bool). Nothing is forwarded until the operator confirms.
-    A falling edge (or `require_bench_enable:=false` from the start) is
-    handled too.
-  * deadman: if the sim rate stream goes quiet for `deadman_timeout_sec`
-    (default 0.1 s), publish a zero-rate / idle-thrust hold instead of the
-    last command, and keep the OFFBOARD heartbeat alive so the board stays
-    level rather than dropping mode.
-
-Namespacing: the sim keeps `uav_0` (so the GUI / launch parity is
-untouched); the real board is brought up on a SEPARATE namespace
-(`uav_bench`) via `uxrce_dds_client start -n uav_bench` in its startup
-script, and both agents run on the same ROS domain. Verify the bench board
-is actually bridged with px4_config/verify_vehicle_status_topic.sh before
-arming.
-"""
+"""Shadow-HITL bench echo: forward the SITL vehicle's body-rate commands to a real, PROPS-OFF
+Pixhawk so its motors spin with the simulated flight."""
 
 import rclpy
 from rclpy.node import Node
@@ -77,8 +31,7 @@ class HitlRateEchoNode(Node):
         self.declare_parameter('deadman_timeout_sec', 0.1)
         self.declare_parameter('heartbeat_hz', 50.0)
         # When true (default) nothing is forwarded until a rising edge on
-        # <bench_prefix>/bench_enable. Set false only for a hands-off rig
-        # you have already validated.
+        # <bench_prefix>/bench_enable.
         self.declare_parameter('require_bench_enable', True)
 
         self._sim = self.get_parameter('sim_prefix').value

@@ -1,27 +1,5 @@
-"""
-diag_body_rate_horizon_export.py
-
-Stage 1 of the body-rate-native training-label hypothesis test (see the
-2026-08-25 plan / results/frozen_authority_20260824/MANIFEST.md's sibling
-adaptive-selector history). Two prior fixes to the PENN risk head's
-backwards-above-gamma~4.5 predictions failed while holding the training
-LABEL SOURCE fixed -- a point-mass simulator. The one remaining, never-
-attempted hypothesis: the point-mass rollout shows a transient "dangerous"
-reading at high gamma that real body-rate dynamics don't share.
-
-This script samples query states EXACTLY the way worker() does (imports
-drone_data_generation and calls its functions directly -- does not copy the
-sampling logic, so it can't silently drift from what actually trains the
-network), computes point-mass min_h_horizon via the existing
-simulate_horizon() (free, no new code), and exports the same query states to
-a .pt file for the new C++ tool (body_rate_horizon_label_export) to compute
-body-rate-native min_h_horizon at the same states/gammas. Then joins the two
-back together for a direct comparison.
-
-Usage:
-    python diag_body_rate_horizon_export.py           # sample + export query rows
-    python diag_body_rate_horizon_export.py --analyze  # after the C++ tool has run, join + report
-"""
+"""Stage 1 of the body-rate-native training-label hypothesis test (see the 2026-08-25 plan /
+results/frozen_authority_20260824/MANIFEST.md's sibling adaptive-selector history)."""
 import argparse
 import csv
 import os
@@ -46,9 +24,7 @@ REPORT_PATH = os.path.join(OUT_DIR, "stage1_report.csv")
 
 def sample_query_state():
     """Mirrors worker()'s scene/carrier/query-state sampling exactly
-    (drone_data_generation.py:698-797), stopping before the label call.
-    Returns None for states the deployed node would never query PENN from
-    (no obstacle currently sensed), matching worker()'s own skip rule."""
+    (drone_data_generation.py:698-797), stopping before the label call."""
     if np.random.random() < G.GATE_SCENE_PROB:
         start, goal, obstacles = G.random_gate_scene()
     else:

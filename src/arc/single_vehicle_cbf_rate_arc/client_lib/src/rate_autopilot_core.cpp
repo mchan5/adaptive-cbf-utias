@@ -56,20 +56,8 @@ void RateAutopilotCore::loadPennModel() {
 
 void RateAutopilotCore::rebuildQp() {
   const double gamma = gamma_obs_selected_;
-  // GAMMA_RATIO_1/2/3 (diagnostic, 2026-08-23): multipliers applied to the
-  // single selected gamma to form the three HOCBF gains separately, i.e.
-  // g_i = ratio_i * gamma. All default to 1.0, reproducing the tied-gain
-  // behavior (g1=g2=g3=gamma) exactly -- confirmed by the campaign
-  // regression check, so unset env == previous behavior bit-for-bit.
-  //
-  // Exists to measure how much of the closed-loop performance ceiling is an
-  // artifact of tying the gains. The tied form is a MODELING SIMPLIFICATION
-  // adopted only so the single-gain PENN+GAT checkpoint could be reused
-  // (see the paper's Future Work); it is also the direct cause of the
-  // gamma^3 control-budget collapse behind the deadlock floor, since at
-  // rest the QP's usable budget scales as ~g1*g2*g3*h. Decoupling should
-  // both raise the ceiling and let g3 stay clear of the feasibility floor
-  // while g1/g2 still adapt.
+  // GAMMA_RATIO_1/2/3 (diagnostic, 2026-08-23): multipliers applied to the single selected gamma to
+  // form the three HOCBF gains separately, i.e. g_i = ratio_i * gamma.
   double r1 = 1.0, r2 = 1.0, r3 = 1.0;
   if (const char* e = std::getenv("GAMMA_RATIO_1")) r1 = std::atof(e);
   if (const char* e = std::getenv("GAMMA_RATIO_2")) r2 = std::atof(e);
@@ -145,17 +133,15 @@ void RateAutopilotCore::maybeCertify(int obstacle_id, const Eigen::Vector3d& cen
   }
   const QuadState state{pos_enu_, vel_enu_, R_, T_};
   const double gamma = gamma_obs_selected_;
-  // Same GAMMA_RATIO_1/2 multipliers rebuildQp() applies -- the barrier
-  // chain's g1/g2 must match the QP's or the certification gate would be
-  // checking a different barrier than the one being enforced. Defaults 1.0.
+  // Same GAMMA_RATIO_1/2 multipliers rebuildQp() applies -- the barrier chain's g1/g2 must match
+  // the QP's or the certification gate would be checking a different barrier than the one being …
   double r1 = 1.0, r2 = 1.0;
   if (const char* e = std::getenv("GAMMA_RATIO_1")) r1 = std::atof(e);
   if (const char* e = std::getenv("GAMMA_RATIO_2")) r2 = std::atof(e);
   registry_.setGammas(r1 * gamma, r2 * gamma);
   const auto reg_result = registry_.registerAndCheck(obstacle_id, state, center, d_min);
-  // Live certification state for tick()'s QP routing -- see this set's
-  // declaration comment. Updated every call, independent of the permanent
-  // uncertified_warned_ids_ below.
+  // Live certification state for tick()'s QP routing -- see this set's declaration comment. Updated
+  // every call, independent of the permanent uncertified_warned_ids_ below.
   if (reg_result.certified) {
     currently_certified_ids_.insert(obstacle_id);
   } else {
@@ -253,13 +239,8 @@ double RateAutopilotCore::pennSelectAlpha(const Eigen::Vector3d& pos_enu) {
     return *gamma;
   }
 
-  // Feasibility-aware gate (PLAN_adaptive_recovery §1.2): take the full
-  // candidate table instead of selectGamma()'s single pick, walk it in the
-  // same rank order selectGamma would (learned-gate-passed candidates
-  // ordered by mean_deadlock ascending -- the kMinDeficit default rule),
-  // and additionally require QP feasibility at the current state before
-  // committing. Only kMinDeficit is supported here; other SELECTION_RULE
-  // values fall back to the ungated selectGamma path above.
+  // Feasibility-aware gate (PLAN_adaptive_recovery §1.2): take the full candidate table instead of
+  // selectGamma()'s single pick, walk it in the same rank order selectGamma would (learned-gate- …
   const char* rule_env = std::getenv("SELECTION_RULE");
   const bool min_deficit_rule = (rule_env == nullptr || std::string(rule_env) == "min_deficit");
   if (!min_deficit_rule) {
@@ -440,10 +421,8 @@ std::pair<double, Eigen::Vector3d> RateAutopilotCore::nominalCommand(double dt) 
     a_des = params_.escape_goal_pull_scale * a_des + escape_bias;
   }
 
-  // Post-infeasibility recovery ramp (see Params::infeasible_recovery_ticks'
-  // comment) -- skipped during an active escape maneuver, which already has
-  // its own dedicated, separately-tested recovery authority; don't make two
-  // recovery mechanisms interact without their own validation.
+  // Post-infeasibility recovery ramp (see Params::infeasible_recovery_ticks' comment) -- skipped
+  // during an active escape maneuver, which already has its own dedicated, separately-tested …
   double accel_max_override = -1.0;
   if (recovery_ticks_remaining_ > 0 && !escape_active_) {
     const double frac = 1.0 - static_cast<double>(recovery_ticks_remaining_) /
@@ -456,14 +435,8 @@ std::pair<double, Eigen::Vector3d> RateAutopilotCore::nominalCommand(double dt) 
 }
 
 std::vector<Eigen::Vector3d> RateAutopilotCore::escapeSearchDirections() const {
-  // Multi-direction escape search (2026-08-22): the single fixed
-  // perpendicular-to-goal escape bias (updateStallEscape()) can itself be a
-  // bad direction in a dense cluster -- confirmed on the closed-loop
-  // diagnostic, where relaxing obstacle margins alone didn't clear a
-  // deadlock because the QP was still minimizing deviation from a nominal
-  // that pointed nowhere useful. These candidates are tried in ADDITION to
-  // the existing single-direction escape (tick() includes it as its own
-  // candidate), not instead of it.
+  // Multi-direction escape search (2026-08-22): the single fixed perpendicular-to-goal escape bias
+  // (updateStallEscape()) can itself be a bad direction in a dense cluster -- confirmed on the …
   std::vector<Eigen::Vector3d> dirs;
   constexpr int kN = 8;
   constexpr double kTwoPi = 6.283185307179586;
@@ -494,11 +467,8 @@ void RateAutopilotCore::integrateAndClampT(double tau, double dt) {
 
 RateAutopilotCore::TickResult RateAutopilotCore::tick(std::optional<double> measured_dt_sec) {
   ++tick_count_;
-  // Clamp a caller-supplied dt to a band around the nominal control period --
-  // bounds a single missed/late wall-clock tick without letting a real stall
-  // (e.g. odom-stale hold, see the client's 1.0s staleness guard) inject a
-  // huge integrator step once ticking resumes. No-argument callers (every
-  // offline diag tool and unit test) get exactly dt_, unchanged.
+  // Clamp a caller-supplied dt to a band around the nominal control period -- bounds a single
+  // missed/late wall-clock tick without letting a real stall (e.g. odom-stale hold, see the …
   const double dt = measured_dt_sec.has_value()
                          ? std::clamp(*measured_dt_sec, 0.5 * dt_, 3.0 * dt_)
                          : dt_;
@@ -516,10 +486,6 @@ RateAutopilotCore::TickResult RateAutopilotCore::tick(std::optional<double> meas
 
   const double d_min = params_.obs_d_min;
   const QuadState state{pos_enu_, vel_enu_, R_, T_};
-  // nominalCommand() also updates escape_active_/escape_attempt_count_ via
-  // updateStallEscape() -- called before the obstacle routing below so the
-  // deadlock-recovery check sees this tick's fresh escape state, not last
-  // tick's.
   const auto [tau_nom, omega_nom] = nominalCommand(dt);
 
   std::vector<Eigen::Vector3d> certified_positions;
@@ -542,22 +508,8 @@ RateAutopilotCore::TickResult RateAutopilotCore::tick(std::optional<double> meas
   auto qp_result =
       active_qp.solve(state, certified_positions, uncertified_positions, d_min, tau_nom, omega_nom, v_cap);
 
-  // Escape-direction search: while an escape is active, try a spread of
-  // candidate directions (escapeSearchDirections()) IN ADDITION to the
-  // single fixed direction already solved above, and commit to whichever
-  // feasible candidate actually achieves the most motion, instead of
-  // trusting one heuristic direction that might point at another obstacle.
-  // Solved against the same obstacle set/QP the deadlock-recovery block
-  // chose above, so this is strictly "same safety constraints, better
-  // choice of where to aim" -- not a relaxation of anything.
-  //
-  // Searches ONCE per attempt, not once per tick: re-searching every tick
-  // let the winning direction flip as position/geometry shifted slightly,
-  // producing an oscillating limit cycle instead of an escape (the vehicle
-  // rotated hard, moved, and ended up back almost exactly where it started
-  // -- seen directly on the closed-loop diagnostic, scene 3). Holding the
-  // chosen direction for the attempt's full duration matches the
-  // discipline the original single-direction escape already used.
+  // Escape-direction search: while an escape is active, try a spread of candidate directions
+  // (escapeSearchDirections()) IN ADDITION to the single fixed direction already solved above, …
   if (escape_active_ && params_.escape_search_enabled) {
     const auto search_dirs = escapeSearchDirections();
     const Eigen::Vector3d base_accel = positionTrackingAccel();
@@ -581,10 +533,8 @@ RateAutopilotCore::TickResult RateAutopilotCore::tick(std::optional<double> meas
       }
     } else if (committed_escape_index_ >= 0 &&
               static_cast<size_t>(committed_escape_index_) < search_dirs.size()) {
-      // Continuing an already-committed attempt: reuse the same direction
-      // (recomputed from current state, same as the baseline always is --
-      // only the CHOICE of direction persists, not a frozen numeric value),
-      // one solve, no re-search.
+      // Continuing an already-committed attempt: reuse the same direction (recomputed from current
+      // state, same as the baseline always is -- only the CHOICE of direction persists, not a …
       const Eigen::Vector3d a_des_c =
           params_.escape_goal_pull_scale * base_accel + search_dirs[committed_escape_index_];
       const auto [tau_c, omega_c] = attitudeTrackingCommand(a_des_c);
@@ -598,13 +548,8 @@ RateAutopilotCore::TickResult RateAutopilotCore::tick(std::optional<double> meas
     // (tau_nom/omega_nom, already solved into qp_result above) stands.
   }
 
-  // Diagnostic dump (Phase 3 follow-up, 2026-08-22): print each certified
-  // obstacle's linear barrier row -- c_tau*tau - c_omega1*omega_x +
-  // c_omega2*omega_y >= RHS -- alongside the nominal and solved command, to
-  // distinguish "the safe polytope is genuinely a near-origin sliver" (a
-  // real geometric trap) from "there's room but the QP isn't using it" (a
-  // solver/weighting bug). Rate-limited to every 20 ticks so a full-episode
-  // replay doesn't flood stdout; env-var gated so it's zero-cost by default.
+  // Diagnostic dump (Phase 3 follow-up, 2026-08-22): print each certified obstacle's linear barrier
+  // row -- c_tau*tau - c_omega1*omega_x + c_omega2*omega_y >= RHS -- alongside the nominal and …
   if (std::getenv("DUMP_QP_ROWS") != nullptr && tick_count_ % 20 == 0) {
     std::fprintf(stderr, "[QPROWS tick=%llu] tau_nom=%.4f omega_nom=[%.4f %.4f %.4f]\n",
                  static_cast<unsigned long long>(tick_count_), tau_nom, omega_nom.x(),
@@ -626,34 +571,19 @@ RateAutopilotCore::TickResult RateAutopilotCore::tick(std::optional<double> meas
     integrateAndClampT(qp_result.tau, dt);
     omega_out = qp_result.omega;
   } else {
-    // Braking fallback (2026-08-23, see nom_infeasible_brake_kv's comment):
-    // was "hold T, command zero body rate" (coast at current
-    // velocity/attitude), which let a real hard collision happen when
-    // infeasibility persisted for several consecutive ticks during a close
-    // approach with no correction. The QP has no feasible
-    // barrier-respecting solution this tick, so there is nothing "correct"
-    // to fall back to -- killing velocity is strictly safer than preserving
-    // it in the failure mode that actually happened, and harmless
-    // elsewhere. Reuses the same attitude-tracking path every other
-    // acceleration-to-(tau,omega) conversion in this file already goes
-    // through, not a new untested one.
+    // Braking fallback (2026-08-23, see nom_infeasible_brake_kv's comment): was "hold T, command
+    // zero body rate" (coast at current velocity/attitude), which let a real hard collision …
     RCLCPP_ERROR_THROTTLE(logger_, *clock_, 1000,
                           "QP solve infeasible -- braking this cycle (was: holding T, zero body rate).");
     const Eigen::Vector3d a_brake = -params_.nom_infeasible_brake_kv * vel_enu_;
-    // Braking is allowed more authority than cruise (see accel_max_override's
-    // comment) -- but this path is open-loop, unlike the QP it's replacing,
-    // so nothing else clamps the resulting body rate to actuator bounds.
-    // integrateAndClampT already bounds thrust; omega must be clamped here
-    // to the SAME box bound the QP itself enforces (qp_omega_max), or an
-    // aggressive brake could command a rate the vehicle cannot achieve.
+    // Braking is allowed more authority than cruise (see accel_max_override's comment) -- but this
+    // path is open-loop, unlike the QP it's replacing, so nothing else clamps the resulting body …
     const auto [tau_brake, omega_brake] =
         attitudeTrackingCommand(a_brake, params_.nom_infeasible_brake_accel_max);
     integrateAndClampT(tau_brake, dt);
     omega_out = omega_brake.cwiseMax(-params_.qp_omega_max).cwiseMin(params_.qp_omega_max);
-    // Arm the recovery ramp (see Params::infeasible_recovery_ticks) --
-    // unconditional overwrite, so a fresh infeasible tick during an
-    // already-active cooldown extends it rather than letting it expire
-    // mid-danger.
+    // Arm the recovery ramp (see Params::infeasible_recovery_ticks) -- unconditional overwrite, so
+    // a fresh infeasible tick during an already-active cooldown extends it rather than letting it …
     recovery_ticks_remaining_ = params_.infeasible_recovery_ticks;
   }
 

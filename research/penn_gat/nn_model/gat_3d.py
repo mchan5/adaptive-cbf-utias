@@ -1,16 +1,4 @@
-"""
-gat_3d.py — 3D Graph Attention Network for the quadrotor PENN+GAT pipeline.
-
-Differences from the original gat.py (bicycle model):
-  - robot input: [x, y, z, vx, vy, vz]        (was [x, y, vx, vy])
-  - obstacle input: [ox, oy, oz, r, vx, vy, vz] (was [ox, oy, r, vx, vy, ...])
-  - goal input: [gx, gy, gz]                    (was [gx, gy])
-  - node features: one-hot(3) + prox(1) + vel(3) = 7  (was 6)
-  - edge attributes: [dx, dy, dz, dist, dvx, dvy, dvz] = 7  (was 5)
-  - zij_dim: 7+7+7 = 21  (was 17)
-  - psi4 input: 16 + gamma_dim  (was hardcoded 18)
-  - gamma_dim: 1 for the drone (alpha_obs only)
-"""
+"""3D Graph Attention Network for the quadrotor PENN+GAT pipeline."""
 
 import numpy as np
 import torch
@@ -38,24 +26,7 @@ class GATModule3D(nn.Module):
         self.optimizer = torch.optim.Adam(self.gat.parameters(), lr=self.lr)
 
     class GATGraphNetwork3D(nn.Module):
-        """
-        3D attention graph network.
-
-        Node features  : [one-hot(3), proximity(1), vx, vy, vz] = 7
-        Edge attributes: [dx, dy, dz, distance, dvx, dvy, dvz]  = 7
-        zij_dim        : 7 + 7 + 7 = 21
-        Output         : [low_speed_time, risk_horizon]  (shape [B, 2]) --
-                         both now receding-horizon quantities (Stage 2,
-                         2026-08-18 barrier-label-collapse plan) rather than
-                         whole-episode-from-start ones: low_speed_time
-                         replaced t_goal (which itself had replaced
-                         deadlock_time) and risk_horizon is the same
-                         violation-integral accumulation windowed to a
-                         forward horizon instead of the full episode. This
-                         class is label-agnostic and needs no code change
-                         either way -- see drone_data_generation.py's
-                         simulate_horizon() for the actual label semantics.
-        """
+        """3D attention graph network."""
 
         def __init__(self, gamma_dim=1):
             super().__init__()
@@ -122,26 +93,8 @@ class GATModule3D(nn.Module):
             return node_emb[first_nodes]  # [B, 16]
 
         def extract_robot_velocity(self, x, batch):
-            """Return the robot node's raw [vx, vy, vz] (node feature columns
-            4:7 -- see create_graph's node_features layout: one-hot(3) +
-            prox(1) + vel(3)).
-
-            Added 2026-08-19 (Phase B4 follow-up, barrier-label-collapse
-            plan): the ensemble PENN head (nn_gat_iccbf_predict.py) only ever
-            saw velocity indirectly, filtered through extract_robot_
-            embedding's attention pooling over the whole graph -- there was
-            no direct path from velocity to the final prediction. Diagnosed
-            after two retrains: the risk head (same architecture, same
-            training run) correctly tracked ground truth across all tested
-            query velocities, while the performance head did not -- ground
-            truth for performance genuinely REVERSES SIGN with velocity
-            (weak correction is best from rest, strong correction is best
-            already at speed; diagnose_perf_head_vel.py /
-            diagnose_risk_head_vel.py), and the pooled embedding apparently
-            wasn't preserving enough of that signal for the small ensemble
-            MLP to recover it. Giving the head a direct, unobscured velocity
-            input removes the need for that reconstruction.
-            """
+            """Return the robot node's raw [vx, vy, vz] (node feature columns 4:7 -- see
+            create_graph's node_features layout: one-hot(3) + prox(1) + vel(3))."""
             device = next(self.parameters()).device
             x = x.to(device)
             batch = batch.to(device)
@@ -155,31 +108,8 @@ class GATModule3D(nn.Module):
 
     @staticmethod
     def _canonicalize_frame(robot, obstacles, goal):
-        """Rotate the whole scene about z so (goal - robot_pos) points along
-        +x, before any feature is derived from it.
-
-        Added 2026-08-20 (Stage 2, barrier-label-collapse plan's scene-level
-        reframe). Every edge attribute already includes raw [dx, dy, dz] --
-        only the derived `dist` component is actually rotation-invariant --
-        and extract_robot_velocity() reads a raw world-frame [vx, vy, vz]
-        node feature with no rotation applied at all. Random training scenes
-        are generated with the goal at x in [2,7] from a robot starting near
-        the origin, so training data is *approximately* +x-forward by
-        construction, but the deployed course flies +y: a scene rotated 90
-        degrees is physically identical but was measured to change the
-        selected gamma on 59% of scenes (mean |delta gamma| 0.78, checked
-        against the deployed checkpoint) and to roughly halve the aleatoric
-        safety gate's rejection rate, purely from heading.
-
-        Canonicalizing here, rather than only fixing the direct-velocity
-        input, closes the gap at its source: both drone_data_generation.py's
-        labelling and cbf_obstacle_node.py's inference call this same
-        function, so training and deployment become frame-consistent by
-        construction instead of by the coincidence of how scenes happen to
-        be sampled. Only yaw (rotation about z) is removed -- z is gravity-
-        aligned and left untouched, matching the small (12-14%) share of
-        real flight speed ever carried by vz.
-        """
+        """Rotate the whole scene about z so (goal - robot_pos) points along +x, before any
+        feature is derived from it."""
         robot = list(robot)
         goal = list(goal)
         rx, ry = goal[0] - robot[0], goal[1] - robot[1]
@@ -204,19 +134,7 @@ class GATModule3D(nn.Module):
         return robot_r, obstacles_r, goal_r
 
     def create_graph(self, robot, obstacles, goal, deadlock=0.0, risk=0.0):
-        """
-        Build a PyG Data object for one 3D scene.
-
-        Args:
-            robot    : [x, y, z, vx, vy, vz]
-            obstacles: list of [ox, oy, oz, radius, vx, vy, vz]
-            goal     : [gx, gy, gz]
-            deadlock : float label (low_speed_time over a receding horizon as
-                       of Stage 2, 2026-08-18, despite the arg name -- kwarg
-                       kept for minimal API churn across the label swaps)
-            risk     : float label (risk_horizon: violation integral over
-                       the same receding horizon, as of Stage 2 2026-08-18)
-        """
+        """Build a PyG Data object for one 3D scene."""
         robot, obstacles, goal = self._canonicalize_frame(robot, obstacles, goal)
         n_obs = len(obstacles)
         num_nodes = n_obs + 2  # robot + obstacles + goal

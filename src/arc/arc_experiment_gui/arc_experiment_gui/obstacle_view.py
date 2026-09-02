@@ -1,11 +1,4 @@
-"""Top-down (ENU x-y) 2D view of the scene: obstacles, drone, goal, trail.
-
-Pure QPainter -- no matplotlib -- so the package stays dependency-light and
-the widget repaints cheaply at telemetry rate. Works identically for SITL
-synthetic obstacles, hardware manual obstacles, and live LiDAR detections
-(they are all just /arc/obstacles markers); the dashed overlay is for the
-frozen scene JSON ground truth, wired in a later phase.
-"""
+"""Top-down (ENU x-y) 2D view of the scene: obstacles, drone, goal, trail."""
 
 import math
 

@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-# Build the workspace into a per-distro tree (build_$ROS_DISTRO /
-# install_$ROS_DISTRO) so the Jazzy desktop and the Humble Jetson never fight
-# over the same output directory. All extra args pass straight to colcon.
-#
-#   scripts/build.sh                      # build everything
-#   scripts/build.sh --packages-select single_vehicle_cbf_rate_arc
+# Build the workspace into a per-distro tree (build_$ROS_DISTRO / install_$ROS_DISTRO) so the Jazzy
+# desktop and the Humble Jetson never fight over the same output directory.
 set -euo pipefail
 
 ARC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -25,13 +21,8 @@ if [ -n "${ROS_DISTRO_EXPECTED:-}" ] && [ "$ROS_DISTRO" != "$ROS_DISTRO_EXPECTED
   echo "build: WARNING sourced ROS '$ROS_DISTRO' but this device expects '$ROS_DISTRO_EXPECTED'"
 fi
 
-# libtorch: hand the cmake prefix to the one package that needs it
-# (single_vehicle_cbf_rate_arc) as a -D flag. Prefer an explicit path from the
-# environment (the Humble container image sets ARC_TORCH_CMAKE_PREFIX_PATH;
-# TORCH_CMAKE is a shorthand), else probe the project venv (native builds on
-# the Jetson). We never activate the venv or export VIRTUAL_ENV — it is
-# isolated and lacks build-time deps (catkin_pkg, empy, lark), so letting
-# ament pick its python breaks message generation for every rosidl package.
+# libtorch: pass the cmake prefix to single_vehicle_cbf_rate_arc as a -D flag, from the environment
+# or the project venv. The venv is never activated/exported — it lacks build deps and breaks rosidl.
 torch_cmake_args=()
 tcp="${ARC_TORCH_CMAKE_PREFIX_PATH:-${TORCH_CMAKE:-}}"
 if [ -z "$tcp" ] && [ -x .venv/bin/python3 ]; then

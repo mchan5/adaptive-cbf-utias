@@ -1,16 +1,5 @@
-// Diagnostic (2026-08-24, range-widening plan step 1): before spending a
-// retrain's wall-clock time on denser sampling above gamma=3.5, check
-// whether PENN's predictions actually carry useful ranking information in
-// that region at all. Queries diagnoseGammaSelection() at each scene's
-// START state (pos=start, vel=0) -- a single-shot, open-loop check, not a
-// full closed-loop trace -- and dumps the full per-candidate table so a
-// separate script can correlate predicted ranking against the real
-// per-scene outcomes already measured in wide_oracle_episodes.csv
-// (results/widerange_20260823/).
-//
-// Deliberately open-loop and start-state-only: cheap (seconds, not
-// minutes) and answers the question that gates whether a retrain is even
-// the right next step, before committing to one.
+// Diagnostic (2026-08-24, range-widening plan step 1): before spending a retrain's wall-clock time
+// on denser sampling above gamma=3.5, check whether PENN's predictions actually carry useful …
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -37,9 +26,8 @@ struct Scene {
   std::vector<Obstacle> obstacles;
 };
 
-// Mirrors body_rate_closed_loop_diag.cpp's loadScenes exactly (same .pt
-// scene format) -- duplicated rather than shared to keep each diagnostic
-// tool self-contained, matching this directory's existing convention.
+// Mirrors body_rate_closed_loop_diag.cpp's loadScenes exactly (same .pt scene format) -- duplicated
+// rather than shared to keep each diagnostic tool self-contained, matching this directory's …
 std::vector<Scene> loadScenes(const std::string& path) {
   std::ifstream file(path, std::ios::binary);
   if (!file) {
@@ -122,13 +110,8 @@ int main(int argc, char** argv) {
       for (const auto& o : scene.obstacles) {
         obstacles.push_back({o.center, o.radius_phys + obs_safety_margin});
       }
-      // QUERY_VEL="x,y,z" overrides the at-rest default (2026-08-24): every
-      // real episode DOES start at rest, so vel=0 is a legitimate query
-      // condition, not an edge case to dismiss -- but it's also the ONLY
-      // condition this tool tests by default, and "at rest, very close to
-      // an obstacle" is a narrow slice of what penn_update_ticks' periodic
-      // re-querying actually samples in flight. Use this to check whether
-      // a diagnosed pattern is at-rest-specific or general.
+      // QUERY_VEL="x,y,z" overrides the at-rest default (2026-08-24): every real episode DOES start
+      // at rest, so vel=0 is a legitimate query condition, not an edge case to dismiss -- but …
       Eigen::Vector3d query_vel(0.0, 0.0, 0.0);
       if (const char* env = std::getenv("QUERY_VEL")) {
         double vx = 0, vy = 0, vz = 0;

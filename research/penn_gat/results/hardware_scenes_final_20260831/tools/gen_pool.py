@@ -1,25 +1,4 @@
-"""
-Candidate-scene pool for the curated 20-scene hardware set.
-
-GUI-corridor convention (matches arc_experiment_gui/runner.py START_XYZ /
-GOAL_XYZ and the launch stack's default waypoint, so the set drops straight
-into the campaign tab with no code change):
-
-    start (0.0, 0.5, 1.5)   goal (0.0, 5.5, 1.5)   straight line 5.0 m along +y
-
-Obstacles: identical, radius 0.06 m (0.12 m dia, from config/obstacles.json),
-centre z = 1.5 m. obs_safety_margin 0.5 => ~0.56 m keep-out bubble.
-
-Two classes:
-  passable : every obstacle pair >= 1.15 m centre-to-centre (flyable corridor)
-  reroute  : >= 1 pair in [0.87, 1.00] m (sub-margin, must be routed around);
-             all other pairs still >= 1.15 m
-
-Emits an oversampled pool so the SITL curation loop can discard scenes that
-veer or collide and still hit 12 passable + 8 reroute.
-
-Usage:  python3 gen_pool.py <out_dir> <n_passable> <n_reroute> <seed_base>
-"""
+"""Candidate-scene pool for the curated 20-scene hardware set."""
 import csv
 import json
 import os

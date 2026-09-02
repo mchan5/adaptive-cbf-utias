@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
-# Curate 20 SITL-clean hardware scenes (12 passable + 8 reroute).
-# For each pool candidate: run fixed(g5.0,penn off) then adaptive(penn on)
-# through SITL, judge both. Accept only if BOTH are "strong" (reached, no
-# hard collision, no veer > 2.5 m, no flyaway). Stop at 12 + 8.
-#
-# GUI-corridor geometry: start (0,0.5,1.5) goal (0,5.5,1.5) -- the launch
-# stack's default waypoint, so NO waypoint args are passed.
+# Curate 20 SITL-clean hardware scenes (12 passable + 8 reroute). For each pool candidate: run
+# fixed(g5.0,penn off) then adaptive(penn on) through SITL, judge both.
 source "$(dirname "$0")/lib.sh"
 CUR="$(dirname "$0")"
 POOL="$CUR/pool"

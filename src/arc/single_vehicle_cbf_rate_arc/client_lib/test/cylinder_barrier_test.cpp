@@ -1,14 +1,5 @@
-// Tier 0 unit test for the selectable obstacle model in
-// body_rate_hocbf.cpp::collisionBarrierChain. See
-// PLAN_cylinder_barrier_20260831.md and penn_gat_training/TESTING.md.
-//
-// collisionBarrierChain's trailing `cylinder_mode` argument switches the
-// obstacle geometry:
-//   false (default) -- sphere: full 3-D distance; a vertical-only offset is a
-//     real constraint (this is the original certified behavior).
-//   true -- vertical cylinder: the barrier and its whole relative-degree-2
-//     chain depend only on the HORIZONTAL relative position, so an obstacle
-//     directly above or below the vehicle is completely ignored.
+// Tier 0 unit test for the selectable obstacle model in body_rate_hocbf.cpp::collisionBarrierChain.
+// See PLAN_cylinder_barrier_20260831.md and penn_gat_training/TESTING.md.
 #include <gtest/gtest.h>
 
 #include "single_vehicle_cbf_rate/body_rate_hocbf.hpp"
@@ -35,9 +26,8 @@ QuadState hoverState() {
 
 }  // namespace
 
-// Cylinder mode: an obstacle directly below (or above) the vehicle -- purely
-// vertical offset -- must produce h = -d_min^2 and identically zero control
-// coefficients: the QP sees no constraint from it at all.
+// Cylinder mode: an obstacle directly below (or above) the vehicle -- purely vertical offset --
+// must produce h = -d_min^2 and identically zero control coefficients: the QP sees no constraint …
 TEST(CylinderBarrier, PureVerticalOffsetIsIgnored) {
   const QuadState s = hoverState();
 

@@ -1,54 +1,5 @@
-"""
-diag_lcb_cv_closed_loop.py
-
-Stage 2 of lcb_k selection: sweep on the BODY-RATE CLOSED-LOOP harness,
-using CALIBRATION_SEEDS scenes only.
-
-Why this exists (2026-08-22/23):
-  diag_lcb_cv.py sweeps lcb_k on the point-mass simulator. Its pick
-  (lcb_k=1.50) turned out to be actively harmful on the real body-rate
-  controller -- closed-loop deadlocks went 14->22/350 and paired speed
-  +2.3%->-2.1% versus lcb_k=0, with no hard-collision benefit either way.
-  Point-mass dynamics have no deadlock failure mode, so a point-mass sweep
-  structurally cannot select against one. Any deployment-facing parameter
-  therefore needs a second selection stage on the system that actually
-  deploys.
-
-  The first attempt at that second stage was run on TEST_SEEDS scenes,
-  which made lcb_k in-sample to the very seeds reproduce_headline.py and
-  the campaign both measure on. This script is the corrected version: it
-  generates/consumes CALIBRATION_SEEDS scenes only
-  (diag_gen_closed_loop_scenes.py CALIBRATION=1), so the test-seed
-  measurement stays clean.
-
-Selection rule (fixed before looking at results):
-  Among values with 0 hard collisions, minimize DEADLOCKS; break ties on
-  margin-violations. Deadlock outranks margin-violation because a stuck
-  vehicle is a mission failure while a margin violation is a near-miss
-  inside a soft buffer.
-
-  2026-08-23 outcome: strict argmin gave lcb_k=0.0 (16/300 deadlocks) over
-  0.25 (17/300) -- a ONE-episode difference. A paired (McNemar) comparison
-  on the identical 300 scenes showed 4 vs 5 discordant scenes, i.e. the
-  two are statistically indistinguishable and the argmin was fitting noise.
-  Values >=0.5 ARE separable and worse (0.25 vs 0.5: 3 vs 8 discordant).
-  The 0.0-vs-0.25 tie was therefore broken with the other calibration-only
-  evidence available -- diag_lcb_cv.py's point-mass sweep on the same
-  CALIBRATION_SEEDS, which prefers 0.25 clearly (margin-violations
-  11.8 -> 9.0 per 50 scenes). Deployed: lcb_k=0.25. No test-seed data was
-  consulted in that decision.
-
-Runs the adaptive arm only (ADAPTIVE_ONLY=1): the fixed-gamma arms ignore
-lcb_k entirely, so including them would burn ~75% of the compute
-reproducing byte-identical rows. Every selection metric here is
-adaptive-arm-only; the fixed arms matter only for the paired-speed
-reference in the final TEST_SEEDS measurement.
-
-Prereq:
-    CALIBRATION=1 python diag_gen_closed_loop_scenes.py
-Usage (from penn_gat_training/):
-    python diag_lcb_cv_closed_loop.py [--out-dir DIR]
-"""
+"""Stage 2 of lcb_k selection: sweep on the BODY-RATE CLOSED-LOOP harness, using
+CALIBRATION_SEEDS scenes only."""
 import argparse
 import csv
 import os

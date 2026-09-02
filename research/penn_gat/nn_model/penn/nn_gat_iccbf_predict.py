@@ -31,10 +31,8 @@ class ProbabilisticEnsembleGAT(nn.Module):
             from penn.penn import EnsembleStochasticLinear
         except:
             from nn_model.penn.penn import EnsembleStochasticLinear
-        # +3 for robot velocity (2026-08-19, barrier-label-collapse plan,
-        # Phase B4 follow-up) -- direct, unobscured path to velocity for the
-        # ensemble head; see GATGraphNetwork3D.extract_robot_velocity's
-        # docstring for why the pooled embedding alone wasn't enough.
+        # +3 for robot velocity (2026-08-19, barrier-label-collapse plan, Phase B4 follow-up) --
+        # direct, unobscured path to velocity for the ensemble head; see …
         self.vel_dim = 3
         self.model = EnsembleStochasticLinear(in_features=16 + self.vel_dim + self.gamma_dim,
                                                 out_features=self.n_output,
@@ -54,18 +52,8 @@ class ProbabilisticEnsembleGAT(nn.Module):
         self.criterion = self.gaussian_nll_loss  # Custom Gaussian NLL Loss
         self.mse_loss = nn.MSELoss()
         self.best_test_err = 10000.0
-        # Normalisation constant -- keeps gamma in [0,1] for the PENN head.
-        # Was 15.0 (stale from GAMMA_RANGE=(0.1,12.0)), then 3.5 for
-        # GAMMA_RANGE=(0.2,3.5). Updated 2026-08-23 to 9.0 for the
-        # range-widening plan's GAMMA_RANGE=(0.2,9.0) -- this constant must
-        # be updated in lockstep with drone_data_generation.py's GAMMA_RANGE
-        # on every change to either, or every label above the OLD gamma_max
-        # normalizes to >1.0, an input range the network never saw in
-        # training and the exact bug this comment's history already
-        # documents once (see git blame). export_penn_weights.py reads this
-        # value at export time and the C++ selector loads it dynamically
-        # from the checkpoint (penn_gamma_selector.cpp's `gamma_max =
-        # get("gamma_max")`), so this is the only place it needs changing.
+        # Normalisation constant -- keeps gamma in [0,1] for the PENN head. Was 15.0 (stale from
+        # GAMMA_RANGE=(0.1,12.0)), then 3.5 for GAMMA_RANGE=(0.2,3.5).
         self.gamma_max = 9.0
         self.v_max_norm = 3.0  # normalisation constant for robot velocity -- matches deployed v_max
 
@@ -120,15 +108,7 @@ class ProbabilisticEnsembleGAT(nn.Module):
         return y_pred_safety_list, y_pred_deadlock_list, div_list
 
     def predict_single_scene(self, graph, gammas):
-        """Run GAT once for one scene graph, then evaluate all gamma candidates in one pass.
-
-        Args:
-            graph: a single torch_geometric Data object (no gamma attribute needed)
-            gammas: FloatTensor of shape (N, gamma_dim)
-
-        Returns:
-            Same (y_pred_safety_list, y_pred_deadlock_list, div_list) as predict().
-        """
+        """Run GAT once for one scene graph, then evaluate all gamma candidates in one pass."""
         self.model.eval()
         self.gat_network.eval()
 
@@ -206,9 +186,8 @@ class ProbabilisticEnsembleGAT(nn.Module):
             gamma     = gamma / self.gamma_max
             y_target  = y.to(self.device)
 
-            # Single GAT forward for the whole batch, then combine all ensemble losses
-            # before stepping. Training each member separately with its own step() causes
-            # conflicting gradient updates to the shared GAT weights within one batch.
+            # Single GAT forward for the whole batch, then combine all ensemble losses before
+            # stepping.
             self.optimizer.zero_grad(set_to_none=True)
             robot_emb = self.gat_network.extract_robot_embedding(x, edge_index, edge_attr, batch_idx)
             robot_vel = self._robot_vel_feature(x, batch_idx)
@@ -286,9 +265,8 @@ class ProbabilisticEnsembleGAT(nn.Module):
         return avg_loss, rmse
 
     def train_loop(self, train_data, test_data, epochs=50, batch_size=32):
-        """
-        Higher-level train loop. Creates the dataloader, calls train_one_epoch & test_one_epoch.
-        """
+        """Higher-level train loop. Creates the dataloader, calls train_one_epoch &
+        test_one_epoch."""
         train_loader = GeoDataLoader(train_data, batch_size=batch_size, shuffle=True)
         test_loader  = GeoDataLoader(test_data, batch_size=batch_size, shuffle=False)
 

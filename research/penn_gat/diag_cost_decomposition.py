@@ -1,34 +1,5 @@
-"""
-diag_cost_decomposition.py
-
-The Stage-3 summary reports a single scalar `mean cost` per arm, where an
-unsafe episode is charged a flat MAX_STEPS*DT*2 = 50s penalty. That conflates
-two completely different failure modes -- "the policy is slow" and "the
-policy is fast but violates on some scenes" -- and the redesign for each is
-totally different. This decomposes it:
-
-  - violation RATE, reported at BOTH the margin boundary (existing metric)
-    and the physical obstacle surface (2026-08-20, redesign Phase 1 --
-    a millimetre graze into the 0.5m SAFETY_MARGIN and an actual collision
-    were being scored identically; see eval_scene_distribution.py's
-    _min_h_physical())
-  - mean time-to-goal among SAFE episodes only (is the speed benefit real?)
-  - the same for the best fitted constant and the per-scene oracle
-
-If adaptive's safe-episode time is already at/near oracle while its
-violation rate is high, the remaining problem is purely a safety/recursive-
-feasibility one, not a performance-prediction one -- a much better-posed
-problem than "the architecture is myopic".
-
-Also checks whether violations are preceded by the fallback firing (i.e. the
-policy drove itself into a state where NO candidate gamma passes the gate),
-which is the signature of a recursive-feasibility failure rather than a
-single-step prediction error.
-
---query-ticks overrides eval_scene_distribution.QUERY_TICKS for this run
-only (2026-08-20, redesign Phase 2's cheapest hypothesis: does re-selecting
-gamma more often reduce cornering, with no retrain required?).
-"""
+"""The Stage-3 summary reports a single scalar `mean cost` per arm, where an unsafe episode is
+charged a flat MAX_STEPS*DT*2 = 50s penalty."""
 import argparse
 
 import numpy as np

@@ -1,41 +1,5 @@
-// Stage 1 of the body-rate-native training-label hypothesis test
-// (2026-08-25 plan): the PENN risk head's predictions turn backwards above
-// ~gamma=4.5 (higher gamma predicted MORE dangerous), and the one remaining
-// unattempted hypothesis is that this comes from the training label source
-// (a point-mass simulator, drone_data_generation.py::simulate_horizon())
-// disagreeing with real body-rate dynamics. This tool computes the SAME
-// min_h_horizon/progress_deficit quantities simulate_horizon() computes,
-// but rolling forward the REAL deployed RateAutopilotCore (body-rate QP)
-// instead of a point-mass integrator, from the same query states.
-//
-// Deliberately self-contained (does not #include body_rate_closed_loop_diag.cpp
-// or share its helpers) -- matches this project's existing convention for
-// diagnostic tools (see penn_gamma_diagnostic.cpp / penn_prediction_quality_
-// check.cpp, each independently self-contained rather than sharing state
-// across diagnostic binaries).
-//
-// Formula parity with simulate_horizon() (verified by direct read of
-// drone_data_generation.py:459-502), NOT approximated:
-//   - min_h_horizon: minimum of h = ||p-c||^2 - r_eff^2 (SQUARED distance,
-//     not linear clearance -- do not confuse with this project's other
-//     min_h_physical/min_h_margin, which are linear) computed at the
-//     PRE-MOVE position each tick, over the FULL (unfiltered) obstacle
-//     list, using r_eff = physical_radius + obs_safety_margin (0.5) on
-//     both sides -- confirmed identical convention, see worker()'s
-//     eff_obstacles construction.
-//   - progress_deficit: max(0, ideal_progress - actual_progress),
-//     ideal_progress = min(v_max*horizon_s, dist0), v_max=3.0 MUST match
-//     point-mass exactly (it's a label-normalization constant the network
-//     was trained against, not a body-rate cruise-speed claim).
-//   - Early exit at dist<0.3 (goal reached inside horizon): remaining time
-//     counts as neither risky nor a progress deficit, matching Python.
-//
-// Known, deliberate approximation (Stage 1 only): R0 = identity for every
-// query state. This is common-mode across every candidate gamma at a given
-// state, so it should not distort the CROSS-GAMMA trend Stage 1 tests for,
-// even though it makes absolute min_h_horizon values not directly
-// comparable to a real mid-flight query. Stage 2 (if reached) must not
-// reuse this shortcut -- see the plan's R0 discussion.
+// Stage 1 of the body-rate-native training-label hypothesis test (2026-08-25 plan): the PENN risk
+// head's predictions turn backwards above ~gamma=4.5 (higher gamma predicted MORE dangerous), and …
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -111,11 +75,6 @@ std::vector<QueryRow> loadQueryRows(const std::string& path) {
   return rows;
 }
 
-// Minimal, self-contained params -- deliberately NOT the full env-var-driven
-// baseParams() from body_rate_closed_loop_diag.cpp (this tool doesn't need
-// authority sweeps; it holds authority at the currently-validated deploy
-// baseline (8,4,4) throughout, since Stage 1 is only probing the gamma/CBF
-// dimension).
 RateAutopilotCore::Params baseParams() {
   RateAutopilotCore::Params p;
   p.vehicle_mass = 2.064;
@@ -196,9 +155,6 @@ LabelResult rolloutLabel(const QueryRow& row, double gamma, double dt, int max_t
       break;
     }
 
-    // Ground-truth h at the PRE-MOVE position, full unfiltered obstacle
-    // list -- matches simulate_horizon()'s h_step-before-integration order
-    // exactly (drone_data_generation.py:469-486).
     for (const auto& o : row.obstacles) {
       const double r_eff = o.radius_phys + obs_safety_margin;
       const double h = (pos - o.center).squaredNorm() - r_eff * r_eff;

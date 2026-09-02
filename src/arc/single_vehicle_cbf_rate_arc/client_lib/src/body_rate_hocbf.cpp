@@ -2,15 +2,8 @@
 
 namespace nodelib {
 
-// `cylinder_mode` switches the obstacle model:
-//   false (default) -- sphere: h = |p - c|^2 - d_min^2, full 3-D distance. This is
-//     the original certified barrier; overflying a finite obstacle is possible.
-//   true -- vertical cylinder: the barrier depends only on the HORIZONTAL relative
-//     position, so the vehicle must clear the obstacle's x,y footprint at any
-//     altitude and overflying is impossible by construction. Matches the real
-//     hardware obstacles (0.75 m floor cylinders). Only the spatial quantities
-//     (rel, vel) are projected to the horizontal plane; the dynamics vector `a`
-//     and the rotation `R` stay full 3-D. See PLAN_cylinder_barrier_20260831.md.
+// `cylinder_mode` switches the obstacle model: false (default) -- sphere: h = |p - c|^2 - d_min^2,
+// full 3-D distance.
 BarrierChain collisionBarrierChain(const QuadState& state, const Eigen::Vector3d& p_obs,
                                     double d_min, double g1, double g2, double m,
                                     bool cylinder_mode) {

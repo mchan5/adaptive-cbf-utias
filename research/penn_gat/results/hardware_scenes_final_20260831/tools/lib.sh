@@ -9,9 +9,6 @@ XRCE_SRC=/home/matt/PX4-Autopilot/Micro-XRCE-DDS-Agent
 YAML="$ARC/install/single_vehicle_cbf_rate_arc/share/single_vehicle_cbf_rate_arc/config/params_single_vehicle_cbf_rate_arc.yaml"
 SRC_YAML="$REPO/single_vehicle_cbf_rate_arc/config/params_single_vehicle_cbf_rate_arc.yaml"
 
-# Kill SITL processes. Patterns match ACTUAL executable/node names only --
-# NOT bare repo paths, which also appear in this session's shell command
-# lines (a broad `pkill -f single_vehicle_cbf_rate` was killing the caller).
 sitl_cleanup() {
   pkill -9 -f 'ros2 launch single_vehicle_cbf_rate_arc cbf_rate_arc_sitl_test_launch' 2>/dev/null
   pkill -9 -f 'autopilot_sv_cbf_rate_node'      2>/dev/null

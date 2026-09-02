@@ -14,9 +14,8 @@ setup(
         (os.path.join('share', package_name, 'launch'), glob('launch/*.py')),
     ],
     install_requires=['setuptools'],
-    # extras_require['test'] is what colcon's pytest step keys off of to run
-    # test/ with pytest rather than falling back to `python -m unittest`
-    # (which cannot collect the pytest-fixture-based smoke test).
+    # extras_require['test'] is what colcon's pytest step keys off of to run test/ with pytest
+    # rather than falling back to `python -m unittest` (which cannot collect the pytest-fixture- …
     tests_require=['pytest'],
     extras_require={'test': ['pytest']},
     zip_safe=True,

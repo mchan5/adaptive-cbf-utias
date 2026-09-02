@@ -1,8 +1,5 @@
-// Tier 0 unit tests -- gtest port of core_sanity_check.cpp's three
-// physical-sanity scenarios (previously print-and-eyeball, now real
-// assertions). See penn_gat_training/TESTING.md for the full V&V pyramid
-// this fits into. No ROS init required (rclcpp::Logger/Clock work
-// standalone), no PENN model needed (penn_enabled: false).
+// Tier 0 unit tests -- gtest port of core_sanity_check.cpp's three physical-sanity scenarios
+// (previously print-and-eyeball, now real assertions).
 #include <gtest/gtest.h>
 
 #include "single_vehicle_cbf_rate/rate_autopilot_core.hpp"

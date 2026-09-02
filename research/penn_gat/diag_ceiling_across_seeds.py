@@ -1,22 +1,5 @@
-"""
-diag_ceiling_across_seeds.py
-
-The whole scene-level reframe rests on one number: the gap between the best
-FITTED CONSTANT gamma and the PER-SCENE ORACLE, measured at 24-32% and
-treated since as the ceiling worth chasing. It was measured on a single
-scene-set seed (EVAL_SEED = 20260821).
-
-diag_validate_margin.py (2026-08-21) found that seed is not typical: its
-best fitted constant is 0.80 -> 8.53s, while three fresh seeds give
-1.00-1.20 -> 7.32-8.14s. A conservative/slow best-constant means a WEAK
-baseline, which inflates every "% faster than the constant" number measured
-against it -- including, potentially, the ceiling itself. If the ceiling is
-seed-specific, the premise of the redesign is too.
-
-This measures ceiling, best-constant gamma, and best-constant time across
-many independent seeds, purely from the fixed-gamma sweep (no network, no
-checkpoint -- so it's immune to retrain noise and fast).
-"""
+"""The whole scene-level reframe rests on one number: the gap between the best FITTED CONSTANT
+gamma and the PER-SCENE ORACLE, measured at 24-32% and treated since as the ceiling worth …"""
 import numpy as np
 
 import eval_scene_distribution as E

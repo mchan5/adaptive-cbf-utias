@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
-"""SITL-only stand-in for fsc_drone_state_estimator_ros2, backed by Gazebo
-ground truth instead of PX4's EKF.
-
-Republishes gz_optitrack_ros2_emulator's Mocap message (world-frame ENU
-pose, ENU-rotated linear twist -- see gz_optitrack_emulator.cpp) as
-nav_msgs/Odometry on state_estimator/local_position/odom, which is what
-single_vehicle_cbf_client and cbf_obstacle_node expect. Alternative to
-px4_odom_bridge_node.py for isolating CBF/QP behavior from EKF noise/lag.
-"""
+"""SITL-only stand-in for fsc_drone_state_estimator_ros2, backed by Gazebo ground truth instead
+of PX4's EKF."""
 
 import rclpy
 from rclpy.node import Node
@@ -22,10 +15,8 @@ class MocapOdomBridgeNode(Node):
         super().__init__('mocap_odom_bridge_node')
 
         self.declare_parameter('frame_id', 'map')
-        # gz_optitrack_ros2_emulator publishes to the absolute topic
-        # "/<model_name>/mocap" (see GazeboMocapEmulator::ConstructTopics),
-        # ignoring this node's own namespace -- must match gz_model_list in
-        # gz_optitrack_ros2_emulator/config/params.yaml.
+        # gz_optitrack_ros2_emulator publishes to the absolute topic "/<model_name>/mocap" (see
+        # GazeboMocapEmulator::ConstructTopics), ignoring this node's own namespace -- must match …
         self.declare_parameter('model_name', 'uav_0')
 
         sub_qos = QoSProfile(

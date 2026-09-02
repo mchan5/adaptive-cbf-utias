@@ -1,17 +1,4 @@
-"""
-Judge one SITL run log against the "strong result" bar.
-
-STRONG (per arm):
-  reached       : some tick within 0.6 m of goal (0,5.5,1.5)
-  no_hard       : min (||pos-centre|| - 0.06) >= 0.0   (drone centre never
-                  inside the physical obstacle)
-  no_veer       : max |x| while in the corridor (1.0 < y < 5.0) <= 2.5 m
-  no_flyaway    : max |x| <= 3.5 and -1.0 <= y <= 7.0 everywhere
-  feasible_ok   : < 20 infeasible ticks total (transient QP infeasibility ok)
-
-Usage: python3 judge.py <log> <scene_flat_json>
-Prints one JSON line; exit 0 if STRONG, 1 otherwise.
-"""
+"""Judge one SITL run log against the "strong result" bar."""
 import json
 import math
 import re

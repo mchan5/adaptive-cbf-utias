@@ -1,17 +1,6 @@
 #!/usr/bin/env bash
-# Repeated-trial SITL consistency measurement: launches the SAME obstacle
-# scene N times in a row and logs each run separately, so
-# parse_repeat_consistency.py can quantify how much the resulting flight
-# path actually varies run to run. Companion to the dt-measurement fix in
-# rate_autopilot_core.cpp/single_vehicle_cbf_rate_client.cpp -- run once
-# with DISABLE_MEASURED_DT=1 (old always-nominal-dt behavior) and once
-# without, same scene/N, to compare spread before/after.
-#
-# Process-cleanup pattern (cleanup() below) reused verbatim from
-# run_arming_transient_sweep.sh -- SIGKILL'ing a `timeout`-bounded
-# `ros2 launch` only kills the launch orchestrator, not the node processes
-# it spawned, which then silently linger and contaminate every subsequent
-# run's topics/ports (see run_arming_transient_sweep.sh's 2026-08-24 note).
+# Repeated-trial SITL consistency measurement: launches the SAME obstacle scene N times in a row and
+# logs each run separately, so parse_repeat_consistency.py can quantify how much the resulting …
 set -o pipefail
 
 REPO=/home/matt/arc_2026/control-barrier-functions-arc

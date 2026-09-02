@@ -1,22 +1,5 @@
-"""
-diag_paired_speed.py
-
-The headline "+29.4% faster than the best fitted constant" (diag_margin_cv.py)
-is computed as t_safe: the mean time-to-goal over episodes where THAT ARM did
-not margin-violate. The constant violates on ~0-2/50 so it averages over
-nearly all scenes; the adaptive policy violates on ~14/50 so it averages over
-only ~36. If the scenes adaptive grazes on are the HARD ones -- which is
-exactly where grazing happens -- then the two averages are taken over
-different-difficulty subsets and the comparison is survivorship-biased in
-adaptive's favour.
-
-This measures it three ways per seed:
-  unpaired  -- the current method (each arm over its own safe episodes)
-  paired    -- both arms over the SAME scenes (those where both are safe)
-  hardness  -- the constant's own time on the scenes adaptive grazed vs the
-               scenes it didn't. If grazed scenes are slower FOR THE CONSTANT
-               TOO, they're objectively harder and the bias is real.
-"""
+"""The headline "+29.4% faster than the best fitted constant" (diag_margin_cv.py) is computed as
+t_safe: the mean time-to-goal over episodes where THAT ARM did not margin-violate."""
 import numpy as np
 
 import eval_scene_distribution as E

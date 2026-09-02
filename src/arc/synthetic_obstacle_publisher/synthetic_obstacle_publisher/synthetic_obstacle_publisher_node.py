@@ -8,25 +8,20 @@ from visualization_msgs.msg import Marker, MarkerArray
 
 
 class SyntheticObstaclePublisher(Node):
-    """
-    Publishes a MarkerArray of synthetic spherical obstacles for visualization in RViz.
-    """
+    """Publishes a MarkerArray of synthetic spherical obstacles for visualization in RViz."""
 
     def __init__(self):
         super().__init__('synthetic_obstacle_publisher')
 
-        # Flat list, groups of 4: x, y, z, diameter. Default: one obstacle
-        # at (1.5, 0, 0) with diameter 1.0m, matching the geometry used in
-        # the Stage 1 validation scripts (stress_test_thrust_floor.py).
+        # Flat list, groups of 4: x, y, z, diameter.
         self.declare_parameter(
             'obstacles',
             [1.5, 0.0, 0.0, 1.0],
         )
         self.declare_parameter('frame_id', 'map')
         self.declare_parameter('publish_rate_hz', 10.0)
-        # Sensing envelope -- launch overrides these from the shared
-        # obstacle_sensing_envelope.yaml (see class docstring). Defaults here
-        # are only for a bare `ros2 run`.
+        # Sensing envelope -- launch overrides these from the shared obstacle_sensing_envelope.yaml
+        # (see class docstring). Defaults here are only for a bare `ros2 run`.
         self.declare_parameter('max_range_m', 8.0)
         self.declare_parameter('z_min_m', 0.1)
         self.declare_parameter('z_max_m', 2.5)
@@ -63,10 +58,7 @@ class SyntheticObstaclePublisher(Node):
             f'z=[{self.get_parameter("z_min_m").value},{self.get_parameter("z_max_m").value}]')
 
     def _refresh_obstacles(self, initial=False):
-        """(Re-)parse the 'obstacles' parameter. Called once at construction and
-        again every tick so a live SetParameters call (e.g. from the experiment
-        GUI switching scenes) takes effect with no relaunch -- same "re-read
-        tunables every tick" pattern the CBF node uses."""
+        """(Re-)parse the 'obstacles' parameter."""
         flat = list(self.get_parameter('obstacles').value)
         if flat == self._obstacles_flat:
             return

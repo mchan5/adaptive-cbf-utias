@@ -1,25 +1,5 @@
-"""One-press single-trial runner for the operator console.
-
-The 4-tab GUI only recorded a bag on the campaign path (`TrialRunner`, which
-walks a whole plan). The redesigned single-screen console has one START RUN
-button that runs exactly one trial and appends one row to a per-session
-`manifest.json`. This is that state machine -- a trimmed `TrialRunner`:
-
-  push arm params -> push scene obstacles -> start rosbag ->
-  move the setpoint to the pre-established goal -> wait `reached` /
-  timeout / abort -> stop rosbag -> operator confirms outcome ->
-  append manifest row.
-
-Return-to-start is regime-conditional. On hardware the pilot positions the
-vehicle and flips to OFFBOARD on the RC, so START RUN goes straight to
-recording and just moves the goal_waypoint to GOAL_XYZ. In SITL there is no
-pilot, so after the first trial the vehicle is parked on the goal and the
-next run would read "reached" instantly; SITL therefore gets a leading
-"fly back to START_XYZ, wait until we are there" leg before the bag starts.
-
-Nothing here is in the control loop; it only sets parameters, publishes a
-goal, and records a bag.
-"""
+"""One-press single-trial runner for the operator console. The 4-tab GUI only recorded a bag on
+the campaign path (`TrialRunner`, which walks a whole plan)."""
 
 import os
 import time
@@ -69,9 +49,8 @@ class SingleRunner(QObject):
         self._cfg = dict(arm_cfg or {})
         self._scene_flat = scene_flat       # list, or None to skip the step
         self._regime = regime
-        # SITL has no pilot to reposition the vehicle between trials, so it
-        # flies itself back to START_XYZ before the bag starts. Hardware /
-        # synthetic / lidar skip straight to recording.
+        # SITL has no pilot to reposition the vehicle between trials, so it flies itself back to
+        # START_XYZ before the bag starts. Hardware / synthetic / lidar skip straight to recording.
         self._return_first = (regime == 'sitl')
         self._git = git_state
         self._record = bool(record)
@@ -154,10 +133,8 @@ class SingleRunner(QObject):
             return
 
         if ph == 'return_to_start':
-            # No stub is republishing goal_waypoint in SITL (publish_goal:=false),
-            # so keep nudging it to START every tick. diag.dist_to_goal tracks
-            # the active waypoint, which we have just moved to START; give it a
-            # beat to propagate before trusting the distance.
+            # No stub is republishing goal_waypoint in SITL (publish_goal:=false), so keep nudging
+            # it to START every tick.
             self._node.publish_goal(*START_XYZ)
             if self._age() < 1.0:
                 return

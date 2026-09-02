@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
-# Runs Tiers 0-3 of the V&V procedure (penn_gat_training/TESTING.md) end to
-# end against the currently-deployed config
-# (config/params_single_vehicle_cbf_rate_arc.yaml). Tiers 4/4b (SITL) are
-# deliberately NOT included here -- they are real-time-bound (tens of
-# minutes to hours) and must be invoked explicitly via their own scripts,
-# never as a side effect of running this one.
+# Runs Tiers 0-3 of the V&V procedure (penn_gat_training/TESTING.md) end to end against the
+# currently-deployed config (config/params_single_vehicle_cbf_rate_arc.yaml).
 set -o pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -23,11 +19,7 @@ DEPLOY_YAML="$ARC_ROOT/control-barrier-functions-arc/single_vehicle_cbf_rate_arc
 CKPT_DIR="$ARC_ROOT/control-barrier-functions-arc/single_vehicle_cbf_rate_arc/nn_model/checkpoint"
 
 # ---- Tier -1: configuration integrity preflight --------------------------
-# PLAN_adaptive_hardening_20260829.md Phase 0.3. Two of the three V&V
-# defects found in the 2026-08-29 audit were config drift: the diag harness
-# measuring a stale parameter snapshot, and the Tier 1 fixture generated
-# from a superseded checkpoint. Catch both here, before Tiers 0/2/3 spend
-# minutes running against a configuration that cannot pass.
+# PLAN_adaptive_hardening_20260829.md Phase 0.3.
 section "Tier -1: configuration integrity preflight"
 preflight_ok=1
 python3 - "$DEPLOY_YAML" "$CKPT_DIR" <<'PYEOF'
@@ -116,9 +108,8 @@ fi
 
 # ---- Tier 2: point-mass statistical (disjoint TEST_SEEDS) -----------------
 section "Tier 2: point-mass statistical validation (TEST_SEEDS)"
-# Feed the deployed gamma range / lcb_k / fallback step to the point-mass
-# harness -- reproduce_headline.py takes the checkpoint from the deployed
-# name but reads these from the environment.
+# Feed the deployed gamma range / lcb_k / fallback step to the point-mass harness --
+# reproduce_headline.py takes the checkpoint from the deployed name but reads these from the …
 eval "$(python3 - "$DEPLOY_YAML" <<'PYEOF'
 import sys, yaml
 p = next(iter(yaml.safe_load(open(sys.argv[1])).values()))["ros__parameters"]

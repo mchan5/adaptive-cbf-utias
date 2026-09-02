@@ -1,22 +1,5 @@
-"""
-drone_data_generation.py
-
-Generates PENN+GAT training data for the quadrotor CBF using a lightweight
-Python drone integrator. No ROS2, no Gazebo, no safe_control dependency.
-
-The integrator mirrors cbf_obstacle_node.py's outer loop:
-  - acceleration-controlled point mass with first-order velocity tracking
-    (vel += a_safe*dt, pos += vel*dt)
-  - cbf_obstacle_accel: relative-degree-2 HOCBF obstacle barrier, applied
-    directly to acceleration (matches a_max in the same units as the real
-    actuation limit -- see cbf_obstacle_accel()'s docstring)
-  - cbf_boundary: axis-aligned box barrier on the P-tracked target velocity
-
-Output: pickle file of graph dicts compatible with nn_model/train_drone.py.
-
-Usage:
-    python drone_data_generation.py
-"""
+"""Generates PENN+GAT training data for the quadrotor CBF using a lightweight Python drone
+integrator. No ROS2, no Gazebo, no safe_control dependency."""
 
 import os
 import sys
@@ -31,69 +14,22 @@ from gat_3d import GATModule3D
 
 DRONE_RADIUS  = 0.25   # x500 body half-width
 SAFETY_MARGIN = 0.5    # added to obstacle radius at inference time (matches obstacle_cbf_node.py)
-DEPLOY_GAMMA_RANGE = (1.3, 8.0)  # penn_gamma_min/max at inference (updated 2026-08-23,
-# range-widening plan: the closed-loop controller was measured safe (0 hard
-# collisions, 300 test scenes) to gamma=8.0, and the best single constant
-# moved from 3.0 to 5.0 there (+11.27% outright), with the per-scene oracle
-# gap roughly doubling on top (+5.04% -> +10.52%). The prior (0.5, 2.5) value
-# is preserved in git history if this needs reverting.
-#
-# GAMMA_RANGE widened 2026-08-23 to (0.2, 9.0) to pad DEPLOY_GAMMA_RANGE's
-# new interior -- same margin philosophy as the 2026-08-19 narrowing this
-# reopens (from (0.1, 12.0) to (0.2, 3.5)), which was done because the old
-# wide range spanned gamma 5-12 that Phase A1's offline sweep and Stage 3
-# SITL both showed as unsafe/deadlock-inducing THEN, diluting the training
-# distribution with irrelevant gamma and contributing to flat/near-constant
-# performance-head predictions (diagnose_perf_head_vel.py). That finding
-# does NOT simply invalidate this widening: this time gamma up to 8.0 is
-# empirically safe on the CURRENT controller (unlike gamma 5-12 in 2026-08-19,
-# which was unsafe on the controller AT THAT TIME) -- but it is the same
-# class of mistake if repeated carelessly, so generate()'s sampling is
-# deliberately DENSER below 3.5 and SPARSER above it (see gamma_bin_edges),
-# not uniform across the full widened span, specifically to avoid diluting
-# the distribution the same way. NOT narrowed to exactly (1.3, 8.0): the
-# 2026-08-18 lesson about JRD blow-up at a flush boundary still applies --
-# keep DEPLOY_GAMMA_RANGE strictly interior to GAMMA_RANGE on any future
-# recalibration of either.
+DEPLOY_GAMMA_RANGE = (1.3, 8.0)
+# penn_gamma_min/max at inference (updated 2026-08-23, range-widening plan: the closed-loop
+# controller was measured safe (0 hard collisions, 300 test scenes) to gamma=8.0, and the best …
 GAMMA_RANGE   = (0.2, 9.0)
 UNSAFE_PROB   = 0.20   # fraction of episodes run WITHOUT CBF so risk > 0 labels appear
 
-# ── Sensing model — mirrors lidar_obstacle_publisher_node.py's defaults ──────
-# (2026-08-20, recursive-feasibility redesign, Phase 0): every simulated
-# actor -- training-data generation, the fixed-gamma baseline, and the
-# adaptive policy alike -- was previously omniscient: obstacle avoidance and
-# the network's graph input both used the full scene obstacle list
-# regardless of distance. Real hardware is not: the Livox-based perception
-# pipeline only ever publishes obstacles within max_range_m of the robot AND
-# inside a world-frame z-band (z_min_m/z_max_m -- excludes floor/ceiling
-# clutter, not a sensor-relative angular FOV; the sensor's own 360-deg
-# horizontal FOV means no angular filtering is needed). Values below match
-# that node's declared defaults exactly so sim and hardware share one
-# sensing envelope instead of two.
-#
-# min_range_m (0.2 on the real node) is deliberately NOT modeled here: it
-# exists to reject near-sensor return noise on individual lidar points, not
-# to make a tracked obstacle vanish -- by the time an obstacle's centroid
-# would be inside 0.2m the vehicle is already deep inside SAFETY_MARGIN
-# (0.5m), so it's irrelevant to this point-mass approximation.
+# ── Sensing model — mirrors lidar_obstacle_publisher_node.py's defaults ────── (2026-08-20,
+# recursive-feasibility redesign, Phase 0): every simulated actor -- training-data generation, the …
 SENSOR_MAX_RANGE = 8.0
 SENSOR_Z_MIN = 0.1
 SENSOR_Z_MAX = 2.5
 
 
 def visible_obstacles(pos, obstacles):
-    """Filter `obstacles` (list of (center, radius)) down to what a
-    perception pipeline with this sensing envelope could actually report
-    from `pos` right now (distance measured to the obstacle's surface, so
-    the filter behaves consistently whether `radius` is a raw physical
-    radius or an already-margin-inflated effective radius).
-
-    Used everywhere a controller or the network makes a decision -- the CBF
-    avoidance correction and any graph/network input. Ground-truth collision
-    scoring (h_step in step_dynamics) is NEVER filtered this way: an
-    unsensed obstacle can still be hit, that's the entire point of modeling
-    this at all.
-    """
+    """Filter `obstacles` (list of (center, radius)) down to what a perception pipeline with this
+    sensing envelope could actually report from `pos` right now (distance measured to the …"""
     out = []
     for c, r in obstacles:
         if not (SENSOR_Z_MIN <= c[2] <= SENSOR_Z_MAX):
@@ -120,43 +56,8 @@ def cbf_obstacle(pos, v, center, radius, alpha):
 
 
 def cbf_obstacle_accel(pos, vel, a_nom, center, radius, gamma):
-    """Relative-degree-2 HOCBF obstacle avoidance, applied directly to
-    acceleration (the vehicle's real control input) instead of to the
-    P-tracked target velocity.
-
-    h = ||p-c||^2 - r^2 is relative-degree 2 in a point-mass-with-
-    acceleration-input plant (two derivatives of h reach a). Enforces the
-    critically-damped-style HOCBF condition
-        hddot + 2*gamma*hdot + gamma^2*h >= 0
-    reusing the single scalar gamma for both poles so this stays a drop-in
-    replacement for the old rel-degree-1 velocity-space gain PENN adapts.
-
-    Why this replaces the old velocity-space cbf_obstacle() call: that
-    function corrected v_safe *before* the k_v acceleration-tracking law,
-    so its correction was realized through k_v*(v_safe-v) and then clamped
-    to a_max only as an afterthought -- a_max could never meaningfully
-    interact with gamma because the correction it was clamping had already
-    been computed as if velocity were the true control input. Applying the
-    HOCBF correction here, after the tracking law, means a high gamma's
-    required correction competes with a_max in the same units, in the same
-    step -- the actuation-limit trade-off Input-Constrained CBF methods
-    (Kim et al. 2025) depend on, and which was previously structurally
-    absent (see barrier-label-collapse plan, Stage 1).
-
-    CONVENTION NOTE (2026-08-19): the correction this function returns
-    *grows* with gamma (verified directly: correction norm ~0.65 m/s^2 at
-    gamma=0.5 vs ~8.6 m/s^2 at gamma=10 on a fixed near-obstacle test
-    state) -- the opposite of the old rel-degree-1 cbf_obstacle()'s
-    convention (low gamma = reacts early/conservative, high gamma = reacts
-    late/aggressive). Here low gamma is the weak/under-reacting end and
-    high gamma the strong end, which can itself become unsafe once it
-    saturates a_max and the clipped correction causes overshoot. Treat any
-    old "prefer low gamma when uncertain" reasoning as inapplicable to this
-    function specifically.
-
-    Returns (a_safe, feasible) -- feasible False only on deep penetration
-    (h < -radius^2), mirroring the old function's semantics.
-    """
+    """Relative-degree-2 HOCBF obstacle avoidance, applied directly to acceleration (the
+    vehicle's real control input) instead of to the P-tracked target velocity."""
     n = pos - center
     n_sq = float(np.dot(n, n))
     if n_sq < 1e-6:
@@ -189,15 +90,8 @@ def cbf_boundary(pos, v, bnd, alpha):
 
 def step_dynamics(pos, vel, goal, obstacles, alpha_obs, boundary, alpha_bnd,
                    v_max, k_p, k_v, a_max, apply_cbf):
-    """One 'dt-normalized' control step: goal+boundary tracking in velocity
-    space, obstacle avoidance in acceleration space, a_max clip. Shared by
-    simulate_episode() (whole-episode-from-start) and simulate_horizon()
-    (receding-horizon from an arbitrary state) so the two can't drift apart
-    the way separately-maintained copies of this project's CBF math already
-    have once before (see obstacle_cbf_node.py vs cbf_obstacle_node.py
-    history). Returns (a_safe, h_step, clipped) -- does NOT integrate
-    pos/vel; callers do that with their own dt.
-    """
+    """One 'dt-normalized' control step: goal+boundary tracking in velocity space, obstacle
+    avoidance in acceleration space, a_max clip."""
     err = goal - pos
     v_nom = k_p * err
     speed = float(np.linalg.norm(v_nom))
@@ -206,9 +100,8 @@ def step_dynamics(pos, vel, goal, obstacles, alpha_obs, boundary, alpha_bnd,
 
     v_safe = cbf_boundary(pos, v_nom, boundary, alpha_bnd)
 
-    # Ground truth: did we actually get close to something, full obstacle
-    # set, regardless of what's currently sensed. A physically real obstacle
-    # causes a physically real violation whether or not it was perceived.
+    # Ground truth: did we actually get close to something, full obstacle set, regardless of what's
+    # currently sensed.
     h_step = np.inf
     for center, radius in obstacles:
         n = pos - center
@@ -219,9 +112,8 @@ def step_dynamics(pos, vel, goal, obstacles, alpha_obs, boundary, alpha_bnd,
     a_safe = k_v * (v_safe - vel)
 
     if apply_cbf:
-        # Avoidance can only react to what's currently sensed -- matches
-        # obstacle_cbf_node.py, which only ever has whatever the (filtered)
-        # /arc/obstacles topic last published in self._obstacles.
+        # Avoidance can only react to what's currently sensed -- matches obstacle_cbf_node.py, which
+        # only ever has whatever the (filtered) /arc/obstacles topic last published in …
         for center, radius in visible_obstacles(pos, obstacles):
             a_safe, _ = cbf_obstacle_accel(pos, vel, a_safe, center, radius, alpha_obs)
 
@@ -242,78 +134,7 @@ def simulate_episode(
     dt=0.05, max_steps=400,
     apply_cbf=True,
 ):
-    """
-    Run one drone episode with the given CBF parameters.
-
-    v_max/k_p/k_v/a_max default to the exact values declared in
-    cbf_obstacle_node.py's ROS parameters, and the position update below
-    mirrors its _tick()/outer-loop structure: the CBF layer only ever
-    proposes a *target* safe velocity (v_safe); the vehicle's actual
-    velocity chases it through a first-order acceleration-tracking law
-    (a_safe = k_v*(v_safe - v_actual), clamped to a_max) rather than
-    snapping to it instantly.
-
-    Earlier version of this function did `pos = pos + v_safe * dt` directly
-    -- a zero-inertia point-mass assumption where every CBF correction is
-    realized in the very same timestep it's requested. That let training
-    rollouts "see" large alpha_obs as always safe (a point-mass can swerve
-    infinitely fast, so the closed-form velocity CBF is safe by
-    construction under its own dynamics), while the real quadrotor -- which
-    has to accelerate its way to v_safe against real momentum and thrust
-    limits -- cannot realize a sharp last-second correction in time. This
-    mismatch was diagnosed 2026-08-18 after PENN-selected alpha_obs=10
-    produced two real min_obs_h<0 violations in PX4 SITL, both with zero
-    epistemic-gate rejection (i.e. not a coverage/OOD gap the ensemble could
-    ever flag -- every member was trained on the same unrealistic dynamics
-    and agreed confidently). Adding the acceleration-tracking step here
-    makes the label-generating rollouts dynamically consistent with the
-    actual deployed control loop.
-
-    Obstacle avoidance itself was moved from velocity space to acceleration
-    space 2026-08-18 (see barrier-label-collapse plan, Stage 1): the old
-    cbf_obstacle() corrected v_safe *before* the k_v tracking law below, so
-    a_max only ever clamped an already-computed correction rather than
-    genuinely competing with gamma inside the same constraint. See
-    cbf_obstacle_accel()'s docstring for the full rationale. a_max is left
-    at its existing default (5.0) deliberately -- it mirrors the real
-    vehicle's CBF_accel_bound_ z-axis sanity check in
-    single_vehicle_cbf_client.hpp, and raising it here without a matching
-    C++ change would silently desync training from what the real client
-    actually accepts.
-
-    Args:
-        apply_cbf: if False, CBF corrections are skipped so the drone may
-                   penetrate obstacles (gives risk > 0 training labels).
-
-    Returns:
-        min_h        (float) — minimum barrier value over all obstacles & steps.
-                     Diagnosed 2026-08-18 as a bad *label* despite being a
-                     correct thing to log: under an active CBF, h obeys
-                     hdot=-gamma*h whenever the constraint binds, so
-                     h(t)=h0*exp(-gamma*t) -> 0+ for ANY gamma. gamma sets
-                     the approach *rate*, not the floor min_h settles at, so
-                     this value alone carries almost no gamma signal (see
-                     barrier-label-collapse plan). Kept for backward
-                     comparison/logging only -- do not train on it.
-        viol_integral(float) — integral of max(0,-h) dt over all obstacles &
-                     steps. Unlike min_h this keeps accumulating for as long
-                     as the drone stays inside the margin, so it separates a
-                     brief graze from a sustained violation and -- per the
-                     same-day label-candidate sweep -- is actually
-                     discriminative across gamma. This is the new risk label.
-        t_goal       (float) — seconds to reach the goal, capped at
-                     max_steps*dt if never reached. The performance label
-                     (replaces the old deadlock_time head, which never
-                     separated gamma either: actuator saturation never once
-                     fired across the validation sweep).
-        reached_goal (bool)
-        frac_accel_clipped (float) — fraction of steps where the obstacle-
-                     avoidance acceleration correction exceeded a_max and
-                     was clipped. Instrumentation for the Stage-1 gate: if
-                     this stays ~0 across the whole gamma range, a_max has
-                     no leverage at the current v_max and gamma still can't
-                     be two-sided. Not a training label.
-    """
+    """Run one drone episode with the given CBF parameters."""
     pos = start.copy()
     vel = np.zeros(3)
     min_h = np.inf
@@ -359,103 +180,8 @@ def simulate_horizon(
     dt=0.05, horizon_s=4.0,
     apply_cbf=True,
 ):
-    """Simulate forward from an arbitrary (pos0, vel0) state for horizon_s
-    seconds under a fixed candidate gamma, and return receding-horizon
-    performance/risk metrics.
-
-    This is the Stage-2 replacement for simulate_episode()'s whole-episode-
-    from-start labels (barrier-label-collapse plan): the old labels
-    answered "if the drone starts at rest near the origin and flies this
-    whole scene with gamma, what happens by the end?" but the deployed node
-    queries PENN mid-course, from whatever (pos, vel) it currently has --
-    at least one train/query state-distribution mismatch this project had
-    not yet addressed. Kim et al. (arXiv:2409.14616) label from the current
-    state over a forward window, not from a fixed start; this mirrors that
-    choice.
-
-    Returns:
-        risk_horizon (float) — integral of max(0,-h) dt over the horizon,
-                     same accumulation rule as simulate_episode's
-                     viol_integral, just windowed to [0, horizon_s] instead
-                     of the whole episode.
-        progress_deficit (float) — meters of goal-directed progress lost
-                     over the horizon relative to the theoretical best case
-                     (flying straight at v_max the whole time, capped by the
-                     actual distance to goal). Low is good (making
-                     consistent progress); high means stalled/deadlocked/
-                     routing away from the goal -- can happen at either end
-                     of gamma: too low under-reacts and drifts into a slow
-                     detour, too high can command a correction that
-                     saturates a_max and oscillates (see
-                     cbf_obstacle_accel()'s convention note -- gamma's
-                     effect here is not simply monotonic).
-
-                     NOT residualized against an obstacle-free reference,
-                     despite that looking like the obvious fix for this
-                     label's high between-state variance (2026-08-20,
-                     Stage 2, barrier-label-collapse plan's scene-level
-                     reframe): tried and measured NOT to work. Subtracting
-                     the obstacle-free/no-CBF deficit for the same
-                     (pos0, vel0, goal) left the between/within-gamma split
-                     essentially unchanged (83.8%->81.8% between-state) and
-                     introduced a new 57-64% exact-zero mass -- the same
-                     MSE-trap failure mode the old low_speed_time label had,
-                     reintroduced by a different mechanism (most sampled
-                     states genuinely aren't near an obstacle, so the
-                     residual floors to ~0 for most of the dataset). The
-                     remaining between-state variance is NOT primarily
-                     P-controller geometry; it tracks something more like
-                     per-encounter severity, which subtracting a straight-
-                     line reference doesn't remove. Left un-fixed here;
-                     Stage 0's held-out ridge-regression check
-                     (eval_scene_distribution.py-adjacent diagnostics) shows
-                     the underlying oracle-gamma signal IS learnable from
-                     scene features despite this label's variance profile,
-                     so the fix -- if one is still needed after retraining
-                     with the other two Stage-2 changes -- likely belongs at
-                     the loss/architecture level (e.g. a per-state relative
-                     ranking loss across gamma) rather than another label
-                     transform.
-
-                     REPLACES the old low_speed_time label (2026-08-19,
-                     Phase B3, barrier-label-collapse plan): low_speed_time
-                     only accumulated while goal-directed speed was below a
-                     hard SPEED_THRESHOLD=0.15 m/s cutoff, so any state that
-                     never dipped below that cutoff registered as an exact
-                     zero regardless of how much gamma actually cost in
-                     travel efficiency -- diagnosed as 91.3% exact-zero over
-                     a 4000-sample replay of worker()'s own sampling
-                     (diagnose_label_dist.py), which let the performance
-                     head minimize its loss by predicting a near-constant
-                     and never actually fitting gamma's effect
-                     (diagnose_perf_head.py / diagnose_perf_head_vel.py:
-                     predicted-vs-true correlation was NEGATIVE, and the
-                     predicted curve collapsed to a ~0.001 spread at real
-                     flight velocity). progress_deficit is a single
-                     continuous scalar per rollout with no hard threshold,
-                     so it carries a nonzero, informative value for
-                     essentially any rollout that isn't a perfect
-                     straight-line max-speed transit -- not just the rare
-                     ones that crossed the old cutoff.
-        frac_clipped (float) — fraction of horizon steps where a_max bound.
-        min_h_horizon (float) — minimum instantaneous barrier value h seen
-                     anywhere in the horizon (0.0 if the horizon has zero
-                     steps, e.g. already at the goal). Added 2026-08-20
-                     after diag_horizon_blindspot.py found risk_horizon's
-                     accumulated-violation-TIME integral and "does h ever go
-                     negative" are not the same question: a brief, shallow
-                     graze contributes almost nothing to the integral (so it
-                     passes a tight cvar_boundary gate easily) while still
-                     being exactly the min_h<0 event the deployed system
-                     calls a safety violation. On 18 held-out scenes that
-                     went unsafe post-retrain, ground truth risk_horizon at
-                     the pre-violation query state/gamma was itself below
-                     cvar_boundary on 67% of them -- not a model calibration
-                     error, a metric that structurally can't bound this.
-                     min_h_horizon exists so a selection rule can gate on
-                     "never crosses zero" directly instead of only on the
-                     integral.
-    """
+    """Simulate forward from an arbitrary (pos0, vel0) state for horizon_s seconds under a fixed
+    candidate gamma, and return receding-horizon performance/risk metrics."""
     pos = pos0.copy()
     vel = vel0.copy()
     dist0 = float(np.linalg.norm(goal - pos))
@@ -505,17 +231,7 @@ def simulate_horizon(
 # ── Scene randomization ───────────────────────────────────────────────────────
 
 def random_scene(n_obs_range=(1, 9), tight_prob=0.7, near_goal_prob=0.15):
-    """
-    Sample a random 3D scene: start, goal, and N sphere obstacles.
-
-    With probability near_goal_prob the robot is placed near the goal
-    (fills the OOD gap seen when the drone holds position at a waypoint).
-
-    Returns:
-        start    : np.ndarray [3]
-        goal     : np.ndarray [3]
-        obstacles: list of (center [3], radius float)  — physical radii, no margin
-    """
+    """Sample a random 3D scene: start, goal, and N sphere obstacles."""
     # Goal always 2–7 m from origin
     goal = np.array([
         np.random.uniform(2.0, 7.0),
@@ -556,10 +272,8 @@ def random_scene(n_obs_range=(1, 9), tight_prob=0.7, near_goal_prob=0.15):
         margin = DRONE_RADIUS + eff_r
 
         if near_goal_flag:
-            # For near-goal scenes the path is short (0.5–2 m) so path-based
-            # placement rarely clears the start/goal margin.  Instead scatter
-            # obstacles at a fixed clearance distance from start in a random
-            # direction — this always produces at least one close obstacle.
+            # For near-goal scenes the path is short (0.5–2 m) so path-based placement rarely clears
+            # the start/goal margin.
             direction = np.random.randn(3)
             direction /= np.linalg.norm(direction)
             dist = np.random.uniform(margin + 0.05, margin + 1.5)
@@ -593,30 +307,8 @@ def random_scene(n_obs_range=(1, 9), tight_prob=0.7, near_goal_prob=0.15):
 
 
 def random_gate_scene(n_extra_range=(0, 4)):
-    """Sample a scene with a deliberate two-obstacle "gate" directly on the
-    path, plus optional extra scattered obstacles elsewhere.
-
-    Added 2026-08-19 (Stage 2 follow-up, barrier-label-collapse plan):
-    random_scene() places every obstacle independently via rejection
-    sampling, so a genuinely narrow gap between a *pair* of obstacles is
-    incidental, not a targeted archetype -- an offline check of the
-    retrained Stage-2 checkpoint on a hand-built two-obstacle gate showed
-    the model extrapolating there (epistemic gate correctly flagged
-    low-gamma as OOD at JRD=0.064 vs a 0.035 threshold) and disagreeing
-    with the ground-truth point-mass sweep on which gamma is actually safe.
-    That specific geometry -- two obstacles forming a corridor gate -- is
-    also exactly what the real deployed course (BASE_OBSTACLES in
-    cbf_sitl_test_launch.py) is built from, so it's the single most
-    important archetype to have in-distribution, not an edge case.
-
-    gate_half_width spans from clearly-open to clearly-impossible
-    (obstacle surfaces overlapping) so both regimes Stage 1's gate sweep
-    found -- flat/no-tradeoff on a passable gate, genuine two-sided cost on
-    an impossible one -- are represented with real density, not just
-    incidentally sampled.
-
-    Returns the same (start, goal, obstacles) shape as random_scene().
-    """
+    """Sample a scene with a deliberate two-obstacle "gate" directly on the path, plus optional
+    extra scattered obstacles elsewhere. Added 2026-08-19 (Stage 2 follow-up, barrier-label- …"""
     goal = np.array([
         np.random.uniform(4.0, 7.0),
         np.random.uniform(-1.0, 1.0),
@@ -673,22 +365,8 @@ DECISION_WEIGHT_FLOOR = 0.05  # baseline sampling weight for open-space states
 
 
 def _decision_weight(pos, eff_obstacles, decay=DECISION_WEIGHT_DECAY, floor=DECISION_WEIGHT_FLOOR):
-    """Sampling weight for a carrier-trajectory state, favoring states near
-    an obstacle's effective boundary over open-space cruise.
-
-    Added 2026-08-19 (Phase B3, barrier-label-collapse plan): the old
-    uniform-over-the-whole-trajectory query sampling meant most training
-    samples landed in open space, where gamma genuinely doesn't matter (any
-    candidate produces an identical safe, fast rollout) -- diluting the
-    minority of samples where gamma actually changes the outcome. A 4000-
-    sample replay of the old sampling (diagnose_label_dist.py) found 91.3%
-    exact-zero performance labels as a direct consequence. This weight is an
-    exponential decay in min-gap-to-nearest-obstacle-boundary (0 at/inside
-    the boundary, decaying over `decay` meters), plus a small floor so
-    open-space states are still sampled sometimes -- the deployed node does
-    sometimes query PENN in open space, and the model shouldn't misbehave
-    there either.
-    """
+    """Sampling weight for a carrier-trajectory state, favoring states near an obstacle's
+    effective boundary over open-space cruise."""
     if not eff_obstacles:
         return floor
     min_gap = min(float(np.linalg.norm(pos - c)) - r for c, r in eff_obstacles)
@@ -696,32 +374,7 @@ def _decision_weight(pos, eff_obstacles, decay=DECISION_WEIGHT_DECAY, floor=DECI
 
 
 def worker(params):
-    """Generate one (scene, query state, candidate gamma) -> receding-
-    horizon label sample.
-
-    Stage 2 of the barrier-label-collapse plan: the old worker() ran one
-    whole episode from the scene's start under the sample's gamma and
-    labeled the *entire* episode -- but the deployed node queries PENN
-    mid-course, from whatever (pos, vel) it currently has. That's a
-    train/query state-distribution mismatch: the model was only ever asked
-    "what happens over a full flight starting at rest near the origin?",
-    never "what happens over the next few seconds from here?" This worker
-    instead:
-      1. Flies the scene once under an independently-sampled *carrier*
-         gamma to reach a diverse, dynamically-reachable set of states
-         (not just the start).
-      2. Picks a point along that carrier trajectory as the query state
-         (pos0, vel0), weighted toward states near an obstacle's effective
-         boundary rather than uniform over the whole trajectory (Phase B3,
-         2026-08-19 -- see _decision_weight()'s docstring for why uniform
-         sampling produced degenerate, mostly-zero performance labels).
-      3. Labels that state under the sample's actual *query* gamma via
-         simulate_horizon() -- a short forward rollout, matching what the
-         node itself does when it evaluates a gamma candidate from the
-         robot's current state.
-    Carrier and query gamma are independent draws so the state distribution
-    isn't correlated with the label gamma.
-    """
+    """Generate one (scene, query state, candidate gamma) -> recedinghorizon label sample."""
     alpha_obs, n_obs_min, n_obs_max, tight_prob = params
     np.random.seed()  # re-seed each worker process
 
@@ -753,30 +406,16 @@ def worker(params):
         pos = pos + vel * 0.05
         carrier_states.append((pos.copy(), vel.copy()))
 
-    # Weight by proximity to a *currently sensed* obstacle, not just a
-    # physically-present one -- otherwise this would bias sampling toward
-    # states the deployed node could never actually be in when it queries
-    # PENN (obstacle physically nearby but outside the sensing envelope).
+    # Weight by proximity to a *currently sensed* obstacle, not just a physically-present one --
+    # otherwise this would bias sampling toward states the deployed node could never actually be …
     weights = np.array([_decision_weight(p, visible_obstacles(p, eff_obstacles))
                         for p, _v in carrier_states])
     weights = weights / weights.sum()
     query_idx = np.random.choice(len(carrier_states), p=weights)
     pos0, vel0 = carrier_states[query_idx]
 
-    # Velocity resampling (2026-08-19, Phase B3 follow-up): a carrier
-    # trajectory naturally decelerates AS it reacts to an obstacle, so a
-    # position sampled near an obstacle almost always comes with an
-    # already-slow velocity -- a diagnose_velocity_coverage.py check found
-    # only 3.1% of gap<0.5m carrier states have speed>1.5 m/s and 0.2% have
-    # speed>2.0 m/s. The deployed node queries PENN periodically
-    # (penn_update_ticks, ~1s) and can catch the drone still at cruise speed
-    # just as it's approaching an obstacle, before any correction has taken
-    # effect -- an (position, velocity) combination the carrier-only
-    # sampling above almost never produces. With 50% probability, replace
-    # the carrier's actual velocity with an independently-drawn one at the
-    # same position: magnitude uniform in [0, v_max], direction toward the
-    # goal with heading noise (matching what the k_p tracking law actually
-    # produces, not an arbitrary 3D vector).
+    # Velocity resampling (2026-08-19, Phase B3 follow-up): a carrier trajectory naturally
+    # decelerates AS it reacts to an obstacle, so a position sampled near an obstacle almost …
     if np.random.random() < 0.5:
         err0 = goal - pos0
         dist0 = float(np.linalg.norm(err0))
@@ -787,11 +426,8 @@ def worker(params):
         direction = direction / dir_norm if dir_norm > 1e-6 else goal_dir
         vel0 = direction * speed
 
-    # The deployed node never calls PENN at all when self._obstacles is
-    # empty (obstacle_cbf_node.py short-circuits to the default gamma) --
-    # so a query state with nothing currently sensed is a state the network
-    # is never actually run from. Skip it rather than emit a degenerate
-    # zero-obstacle graph sample the deployed system would never produce.
+    # The deployed node never calls PENN at all when self._obstacles is empty (obstacle_cbf_node.py
+    # short-circuits to the default gamma) -- so a query state with nothing currently sensed is a …
     obs_visible = visible_obstacles(pos0, obstacles)
     if not obs_visible:
         return None
@@ -803,32 +439,11 @@ def worker(params):
 
     module = GATModule3D(robot_radius=DRONE_RADIUS)
     robot_state = [pos0[0], pos0[1], pos0[2], vel0[0], vel0[1], vel0[2]]
-    # Graph uses effective radii to match inference-time graph construction,
-    # and only the obstacles currently sensed from pos0 -- matches what
-    # /arc/obstacles would actually contain at this instant.
+    # Graph uses effective radii to match inference-time graph construction, and only the obstacles
+    # currently sensed from pos0 -- matches what /arc/obstacles would actually contain at this …
     obs_list = [[c[0], c[1], c[2], r + SAFETY_MARGIN, 0.0, 0.0, 0.0] for c, r in obs_visible]
-    # y[:,0] is performance (progress_deficit over the horizon, meters --
-    # replaces low_speed_time as of 2026-08-19, Phase B3: see
-    # simulate_horizon()'s docstring).
-    #
-    # y[:,1] (risk) SWAPPED 2026-08-20 (recursive-feasibility redesign,
-    # Phase 2 follow-up) from risk_horizon (the accumulated-violation-time
-    # integral) to min_h_horizon directly. Motivated by a live experiment:
-    # gating on ground-truth min_h_horizon (oracle_min_h mode) and halving
-    # the deployed query cadence together cut the margin-violation rate in
-    # half (12%->6%), while cadence alone made zero difference (even made
-    # things slightly worse) to the SHIPPED risk_horizon-gated policy --
-    # because checking a metric that can't represent the failure mode more
-    # often doesn't help (see the accumulated-violation-time-gate pattern
-    # note). min_h_horizon is the quantity that actually distinguishes "the
-    # constraint is ever crossed" from "crossed briefly, integrates away to
-    # nothing" -- the same fix diag_horizon_blindspot.py already applied at
-    # the oracle level, now pushed into the label the network is trained on
-    # directly. Sign convention is now INVERTED from the old risk label:
-    # LOW/NEGATIVE = dangerous, HIGH/POSITIVE = safe, not floored at zero
-    # (see AdaptivePolicy.select()'s and cccp_calibrate_drone.py's matching
-    # updates -- both read this head's prediction and must agree on the
-    # sign).
+    # y[:,0] is performance (progress_deficit over the horizon, meters -- replaces low_speed_time as
+    # of 2026-08-19, Phase B3: see simulate_horizon()'s docstring).
     graph = module.create_graph(
         robot=robot_state,
         obstacles=obs_list,
@@ -852,28 +467,8 @@ def worker(params):
 # ── Batch generation ──────────────────────────────────────────────────────────
 
 def default_gamma_bin_edges(gamma_range=GAMMA_RANGE, split=3.5, n_low=20, n_high=20):
-    """Non-uniform bin edges: `n_low` equal-width bins below `split` (same
-    resolution as the pre-2026-08-23 (0.2,3.5) stratification), `n_high`
-    bins above it. Added for the range-widening plan so the newly added
-    gamma>3.5 mass is sparser per unit gamma than the low range, rather
-    than uniform over the whole (0.2, 9.0) span -- a naive uniform
-    stratification would put more than half the training samples above 3.5,
-    repeating the 2026-08-19 dilution failure mode this project already hit
-    once with a wide range (0.1, 12.0).
-
-    n_high RAISED 2026-08-24 (was 8, giving ~4x sparser density than the
-    low region -- 0.6875 gamma/bin vs 0.165). penn_prediction_quality_check
-    (see single_vehicle_cbf_rate_arc/client_lib/tools/) found the risk
-    head's predictions turn BACKWARDS above ~gamma=4.5 (predicting higher
-    gamma as more dangerous, contradicting the ground-truth safety sweep's
-    0 hard collisions from 3.2-10.0) in 51% of scenes, and the resulting
-    cvar-gate false-rejection throttles the deployed selector's effective
-    range in 58% of scenes -- diagnosed as sparse-region extrapolation, not
-    a real learned effect. 20 roughly matches the low region's per-bin
-    density (paired with the num_samples bump in generate()'s __main__
-    call, below) rather than fixing the split point itself -- DEPLOY_GAMMA_
-    RANGE=(1.3,8.0) already sits mostly above the old split=3.5, so the
-    region that needed density was specifically the one that got starved."""
+    """Non-uniform bin edges: `n_low` equal-width bins below `split` (same resolution as the
+    pre-2026-08-23 (0.2,3.5) stratification), `n_high` bins above it."""
     g_min, g_max = gamma_range
     split = min(split, g_max)
     edges = list(np.linspace(g_min, split, n_low + 1))
@@ -892,12 +487,7 @@ def generate(
     gamma_bin_edges=None,
     output_prefix="data/drone_data",
 ):
-    """Generate num_samples episodes, stratified across gamma_range.
-
-    gamma_bin_edges, if given, overrides n_gamma_bins with an explicit,
-    non-uniform bin-edge list (see default_gamma_bin_edges) -- added
-    2026-08-23 for the range-widening plan. Omitting it reproduces the
-    original uniform-bin behavior exactly."""
+    """Generate num_samples episodes, stratified across gamma_range."""
     if gamma_bin_edges is not None:
         edges = list(gamma_bin_edges)
     else:
@@ -935,20 +525,13 @@ def generate(
 
 
 if __name__ == "__main__":
-    # (previously imported matplotlib here purely to call .use('Agg') --
-    # nothing in this file plots anything, and the venv's
-    # include-system-site-packages fallback picks up a system matplotlib
-    # built against numpy 1.x, which crashes against the venv's numpy 2.x.
-    # Dropped as dead code rather than chasing the numpy/matplotlib pin.)
+    # (previously imported matplotlib here purely to call .use('Agg') -- nothing in this file plots
+    # anything, and the venv's include-system-site-packages fallback picks up a system matplotlib …
     np.random.seed(42)
 
     generate(
-        # RAISED 2026-08-24 (was 100000) alongside default_gamma_bin_edges's
-        # n_high bump (8->20, doubling total bins 28->40) -- keeps low-region
-        # per-bin density close to the previously-validated ~3571/bin
-        # (100000/40=2500 alone would have diluted it further; 140000/40=3500
-        # holds it roughly steady while giving the high region real density
-        # for the first time).
+        # RAISED 2026-08-24 (was 100000) alongside default_gamma_bin_edges's n_high bump (8->20,
+        # doubling total bins 28->40) -- keeps low-region per-bin density close to the previously- …
         num_samples=140000,
         num_processes=16,
         n_obs_range=(1, 8),

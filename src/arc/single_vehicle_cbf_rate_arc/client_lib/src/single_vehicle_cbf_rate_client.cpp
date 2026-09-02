@@ -69,9 +69,8 @@ RateAutopilotClient::RateAutopilotClient(const rclcpp::NodeOptions& options)
   this->declare_parameter<double>("uncertified_v_cap", 1.0);
 
   this->declare_parameter<double>("cbf_gamma_obs", params.cbf_gamma_obs);
-  // Obstacle model: false -> sphere barrier (default, original certified
-  // behavior); true -> vertical-cylinder barrier (horizontal distance only).
-  // Structural: read once at construction, not live-reloaded.
+  // Obstacle model: false -> sphere barrier (default, original certified behavior); true ->
+  // vertical-cylinder barrier (horizontal distance only).
   this->declare_parameter<bool>("cbf_cylinder_barrier", params.cbf_cylinder_barrier);
 
   // PENN+GAT adaptive gamma parameters
@@ -162,24 +161,14 @@ RateAutopilotClient::RateAutopilotClient(const rclcpp::NodeOptions& options)
   obstacles_sub_ = this->create_subscription<visualization_msgs::msg::MarkerArray>(
       "/arc/obstacles", qos_sub,
       [this](const visualization_msgs::msg::MarkerArray::ConstSharedPtr& msg) { obstaclesCallback(msg); });
-  // The versioned suffix this checkout's uxrce_dds_client publishes under
-  // has drifted before (previously "_v1", not "_v4") and drifted again --
-  // as of 2026-09-01 this PX4-Autopilot build's dds_topics.yaml lists only
-  // the unversioned "/fmu/out/vehicle_status" (confirmed via `ros2 topic
-  // info -v`: vehicle_status_v1 had publisher count 0, vehicle_status had
-  // 1). A dead vehicle_status topic is silent: armed_ never updates and the
-  // real rate-setpoint publish -- gated on armed_ -- never fires, so the QP
-  // computes feasible commands every tick that never reach PX4. Use the
-  // unversioned name -- it's what dds_topics.yaml actually defines, not a
-  // suffix PX4 may renumber on the next rebuild.
+  // The versioned suffix this checkout's uxrce_dds_client publishes under has drifted before
+  // (previously "_v1", not "_v4") and drifted again -- as of 2026-09-01 this PX4-Autopilot …
   vehicle_status_sub_ = this->create_subscription<px4_msgs::msg::VehicleStatus>(
       "fmu/out/vehicle_status", qos_px4_out,
       [this](const px4_msgs::msg::VehicleStatus::ConstSharedPtr& msg) { vehicleStatusCallback(msg); });
 
-  // Runtime goal-waypoint command. Relative name -- resolves under this
-  // node's namespace, i.e. /<uav_prefix>/goal_waypoint (e.g.
-  // /uav_0/goal_waypoint). This is a rare, deliberate operator command, not
-  // a stream, so reliable/depth-1 is right.
+  // Runtime goal-waypoint command. Relative name -- resolves under this node's namespace, i.e.
+  // /<uav_prefix>/goal_waypoint (e.g. /uav_0/goal_waypoint).
   const auto qos_goal = rclcpp::QoS(1).reliability(RMW_QOS_POLICY_RELIABILITY_RELIABLE)
                             .durability(RMW_QOS_POLICY_DURABILITY_VOLATILE);
   goal_sub_ = this->create_subscription<geometry_msgs::msg::PointStamped>(
@@ -193,9 +182,8 @@ RateAutopilotClient::RateAutopilotClient(const rclcpp::NodeOptions& options)
   vehicle_com_mode_pub_ = this->create_publisher<px4_msgs::msg::OffboardControlMode>(
       "fmu/in/offboard_control_mode", qos_px4);
 
-  // Side-channel diagnostics -- visualization / experiment logging only.
-  // BEST_EFFORT + shallow depth so a slow subscriber cannot back-pressure
-  // this 100 Hz node. Relative name -> /<uav_prefix>/cbf/diagnostics.
+  // Side-channel diagnostics -- visualization / experiment logging only. BEST_EFFORT + shallow
+  // depth so a slow subscriber cannot back-pressure this 100 Hz node.
   const auto qos_diag = rclcpp::QoS(5)
                             .reliability(RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT)
                             .durability(RMW_QOS_POLICY_DURABILITY_VOLATILE);
@@ -212,9 +200,6 @@ RateAutopilotClient::RateAutopilotClient(const rclcpp::NodeOptions& options)
 }
 
 double RateAutopilotClient::computeThrustMax() const {
-  // Inverse of VehicleModel::transformInputs's normalized_thrust =
-  // clamp(scaling * (T/num_rotors) + idle, 0, 1): solve for T at
-  // normalized_thrust == 1.0.
   return (1.0 - vehicle_idle_thrust_) / vehicle_thrust_scaling_ * vehicle_num_rotors_;
 }
 
@@ -226,11 +211,8 @@ void RateAutopilotClient::vehicleStatusCallback(const px4_msgs::msg::VehicleStat
   }
   if (last_arming_state_.has_value() && now_armed && !(*last_arming_state_)) {
     core_->resetT("re-armed");
-    // Auto-hover-in-place: snap the goal to wherever the drone is the
-    // instant it arms/enters offboard, so it holds position with zero
-    // operator action. Needs valid odometry to read a position; if it isn't
-    // ready yet, leave waypoint_override_ alone and let the waypoint_x/y/z
-    // param default apply as a fallback.
+    // Auto-hover-in-place: snap the goal to wherever the drone is the instant it arms/enters
+    // offboard, so it holds position with zero operator action.
     if (core_->odomValid()) {
       waypoint_override_ = core_->position();
       const Eigen::Vector3d& wp = *waypoint_override_;
@@ -319,20 +301,12 @@ void RateAutopilotClient::tick() {
   live.uncertified_v_cap = this->get_parameter("uncertified_v_cap").as_double();
   core_->updateTunableParams(live);
 
-  // cbf_gamma_obs is deliberately excluded from updateTunableParams (a gamma
-  // change needs rebuildQp()); push it in via the dedicated setter so the
-  // fixed-gamma arm of the experiment campaign is settable with `ros2 param
-  // set` and no relaunch. selectGamma() picks the new value up within
-  // penn_update_ticks and rebuilds the QP.
+  // cbf_gamma_obs is deliberately excluded from updateTunableParams (a gamma change needs
+  // rebuildQp()); push it in via the dedicated setter so the fixed-gamma arm of the experiment …
   core_->setFixedGamma(this->get_parameter("cbf_gamma_obs").as_double());
 
-  // Measure real elapsed time between ticks rather than trusting the nominal
-  // control period: this timer is wall-clock, but under SITL, PX4/Gazebo run
-  // lockstepped to each other on sim-time that isn't guaranteed to track wall
-  // time 1:1 under host load. First tick after startup has no prior sample.
-  // DISABLE_MEASURED_DT (diagnostic-only, default unset): forces the old
-  // always-nominal-dt behavior without a rebuild, for an A/B run-to-run
-  // consistency comparison against this fix.
+  // Measure real elapsed time between ticks rather than trusting the nominal control period: this
+  // timer is wall-clock, but under SITL, PX4/Gazebo run lockstepped to each other on sim-time …
   std::optional<double> measured_dt;
   if (last_tick_time_.has_value() && std::getenv("DISABLE_MEASURED_DT") == nullptr) {
     measured_dt = (now - *last_tick_time_).seconds();

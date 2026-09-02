@@ -1,18 +1,5 @@
 #!/usr/bin/env bash
-# Gazebo SITL for the Humble container (desktop/laptop only — the Jetson flies
-# real hardware). PX4-Autopilot and the uXRCE-DDS agent live in a Docker volume
-# (arc-px4), built once for jammy, so the host's own native PX4 build is never
-# touched. `setup` snapshots the result as arc-humble:sitl.
-#
-#   scripts/sitl.sh setup          # one-time: seed volume, build PX4 + agent, snapshot image
-#   scripts/sitl.sh run [scene]    # launch SITL headless (scene default: slalom)
-#   scripts/sitl.sh gui [scene]    # same, with the Gazebo GUI + RViz (WSLg / X11)
-#   scripts/sitl.sh shell          # bash into the SITL container
-#   scripts/sitl.sh stop | rm
-#
-# Env overrides: PX4_SRC, XRCE_SRC (host source dirs, default ~/PX4-Autopilot,
-# ~/Micro-XRCE-DDS-Agent), PX4_VER (clone tag when no host source), SITL_RESEED=1
-# (re-copy source), SITL_REBUILD=1 (force PX4 rebuild).
+# Gazebo SITL for the Humble container (desktop/laptop only — the Jetson flies real hardware).
 set -euo pipefail
 
 ARC_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$ARC_ROOT"

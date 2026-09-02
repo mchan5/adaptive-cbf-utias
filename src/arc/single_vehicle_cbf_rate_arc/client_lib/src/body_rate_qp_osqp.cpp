@@ -25,9 +25,6 @@ BodyRateCBFQP::BodyRateCBFQP(double m, double g1, double g2, double g3, double T
 QuadState BodyRateCBFQP::velocityCappedState(const QuadState& state, const Eigen::Vector3d& p_obs,
                                               double v_cap, bool cylinder_mode) {
   const Eigen::Vector3d rel_p = state.p - p_obs;
-  // In cylinder mode the closing-speed cap acts on the horizontal radial
-  // direction only (consistent with the vertical-cylinder collision barrier);
-  // in sphere mode it is the full 3-D radial direction (original behavior).
   const Eigen::Vector3d rel =
       cylinder_mode ? Eigen::Vector3d(rel_p.x(), rel_p.y(), 0.0) : rel_p;
   const double dist = rel.norm();

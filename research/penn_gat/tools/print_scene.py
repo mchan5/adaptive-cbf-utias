@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Print a scene's obstacles in human-measurable form.
-
-Usage: python3 print_scene.py <scene.json>
-"""
+"""Print a scene's obstacles in human-measurable form. Usage: python3 print_scene.py <scene.json>"""
 import json
 import sys
 

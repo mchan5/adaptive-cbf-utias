@@ -1,23 +1,5 @@
-"""
-diag_margin_cv.py
-
-diag_gate_sweep.py picked risk_margin=0.30 by eyeballing a sweep on ONE
-scene-set seed, then diag_validate_margin.py found it didn't generalize
-(0.30 gave +14.7% on the tuning seed, averaged ~+2% and produced a hard
-collision on 3 fresh seeds). diag_ceiling_across_seeds.py then confirmed
-the underlying ceiling (best-constant vs per-scene-oracle gap) IS robust
-across 13 seeds (25.6% mean, std 3.8) -- so the target is real, the
-single-seed margin selection was the actual mistake.
-
-This does it properly: sweep margin on CALIBRATION seeds only, pick the
-value that meets a safety bar with the best mean cost THERE, then report
-performance on separate TEST seeds the margin selection never saw. This is
-the number that's allowed to be believed.
-
-Safety bar: among calibration seeds, only consider margins with a
-mean hard-collision rate of exactly 0 -- hard collisions are the one metric
-this project has treated as non-negotiable all session.
-"""
+"""diag_gate_sweep.py picked risk_margin=0.30 by eyeballing a sweep on ONE scene-set seed, then
+diag_validate_margin.py found it didn't generalize (0.30 gave +14.7% on the tuning seed, …"""
 import numpy as np
 
 import eval_scene_distribution as E
