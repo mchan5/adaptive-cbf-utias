@@ -75,7 +75,7 @@ On **workstation** and **companion**, in every shell:
 
 ```bash
 export ROS_DOMAIN_ID=<pick one, same on both>      # e.g. 42
-source /opt/ros/jazzy/setup.bash
+source /opt/ros/humble/setup.bash
 ```
 
 Verify they see each other before wiring in the FMU: run
@@ -92,7 +92,7 @@ Pixhawk wired to the companion's UART (or USB) at 921600.
 
 ```bash
 export ROS_DOMAIN_ID=42
-source /opt/ros/jazzy/setup.bash
+source /opt/ros/humble/setup.bash
 source ~/<your_ws>/install/setup.bash          # needs px4_msgs
 
 # serial agent for the REAL board — matches etc/extras.txt device/baud
@@ -107,7 +107,7 @@ topic version the code expects:
 
 ```bash
 export ROS_DOMAIN_ID=42
-source /opt/ros/jazzy/setup.bash && source ~/<your_ws>/install/setup.bash
+source /opt/ros/humble/setup.bash && source ~/<your_ws>/install/setup.bash
 ros2 topic list | grep uav_bench                       # /uav_bench/fmu/out/... present
 ros2 topic echo /uav_bench/fmu/out/vehicle_status_v1 --once   # one message
 # repo's version check (expects v1 live, v4 absent):
@@ -125,7 +125,7 @@ first (the script prints exactly where).
 ```bash
 cd "$ARC_ROOT"
 export ROS_DOMAIN_ID=42
-source /opt/ros/jazzy/setup.bash
+source /opt/ros/humble/setup.bash
 # libtorch is picked up by scripts/build.sh; no venv activation needed
 source "install_$ROS_DISTRO/setup.bash"
 export PX4_SRC_DIR=/home/matt/PX4-Autopilot
@@ -172,7 +172,7 @@ Terminal W2:
 ```bash
 cd "$ARC_ROOT"
 export ROS_DOMAIN_ID=42
-source /opt/ros/jazzy/setup.bash && source "install_$ROS_DISTRO/setup.bash"
+source /opt/ros/humble/setup.bash && source "install_$ROS_DISTRO/setup.bash"
 
 ros2 launch hitl_bench_support hitl_bench_launch.py \
   sim_prefix:=uav_0 bench_prefix:=uav_bench \

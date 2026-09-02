@@ -58,3 +58,4 @@ __pycache__/
 *.pid
 *.log
 !research/**/results/**/*.log
+config/dds/*.xml

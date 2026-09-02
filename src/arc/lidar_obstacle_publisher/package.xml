@@ -13,6 +13,11 @@
   <depend>nav_msgs</depend>
   <depend>visualization_msgs</depend>
 
+  <!-- launch/lidar_bench_launch.py bench rig only -->
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>livox_ros_driver2</exec_depend>
+
   <test_depend>python3-pytest</test_depend>
 
   <export>
