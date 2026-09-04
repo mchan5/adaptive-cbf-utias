@@ -22,7 +22,7 @@ mount offset, and the production sensing envelope.
     ros2 launch lidar_obstacle_publisher lidar_bench_launch.py driver:=false   # driver already up
     ros2 launch lidar_obstacle_publisher lidar_bench_launch.py rviz:=false fake_odom:=false
     ros2 launch lidar_obstacle_publisher lidar_bench_launch.py \
-        self_filter:=0.35,0.35,0.20 roi:=-1.5,-0.5,1.5,6.5   # cull the airframe + clip to arena
+        self_filter:=0.5,-0.4,0.4 roi:=-1.5,-0.5,1.5,6.5   # 0.5 m self column + clip to arena
 """
 
 import os
@@ -89,8 +89,11 @@ def _setup(context, *args, **kwargs):
         "marker_shape": marker_shape,
     }
     if self_filter:
-        hx, hy, hz = (float(v) for v in self_filter.split(","))
-        node_params["self_filter_half_extents_xyz"] = [hx, hy, hz]
+        parts = [float(v) for v in self_filter.split(",")]
+        node_params["self_filter_radius_m"] = parts[0]      # "0" disables
+        if len(parts) >= 3:
+            node_params["self_filter_z_min_m"] = parts[1]
+            node_params["self_filter_z_max_m"] = parts[2]
     if roi:
         xmin, ymin, xmax, ymax = (float(v) for v in roi.split(","))
         node_params["roi_enabled"] = True
@@ -164,8 +167,8 @@ def generate_launch_description():
             description="'sphere' or 'cylinder' -- match the CBF obstacle model in use"),
         DeclareLaunchArgument(
             "self_filter", default_value="",
-            description="Body-frame self-filter half-extents 'hx,hy,hz' in metres; "
-                        "'' disables. Drops points inside the box (the airframe)."),
+            description="Body-frame self-filter cylinder: 'radius' or 'radius,zmin,zmax' "
+                        "in metres. '' = node default (radius 0.40, on); '0' disables."),
         DeclareLaunchArgument(
             "roi", default_value="",
             description="World-frame arena ROI 'xmin,ymin,xmax,ymax' in metres; "

@@ -1,29 +1,30 @@
 """Pure spatial pre-filters for the LiDAR obstacle pipeline.
 
 numpy-only (no rclpy) so they are unit-testable without a ROS environment, the
-same split as tracker.py. Each returns a boolean keep-mask (True == keep) the
-caller applies to its point array.
+same split as hysteresis_tracker.py. Each takes an (N, 3) array and returns a
+boolean keep-mask (True == keep) the caller applies to its point array.
 """
 
-import numpy as np
 
+def self_filter_mask(points_body, radius_m, z_min_m, z_max_m):
+    """Keep-mask for points OUTSIDE the vehicle's own body.
 
-def self_filter_mask(points_body, half_extents_xyz):
-    """Keep-mask for points OUTSIDE the vehicle's own footprint.
+    Drops points inside a vertical cylinder centred on the body origin: within
+    ``radius_m`` in the body XY plane AND between ``z_min_m`` and ``z_max_m`` in
+    body z. That is the drone itself -- arms, props, legs, payload -- seen in
+    the Mid-360's near field. A quadrotor is roughly radially symmetric about
+    the flight-controller origin, so one radius fits it (no three hand-tuned box
+    half-extents, no single zero silently disabling everything).
 
-    ``half_extents_xyz`` is the half-size of an axis-aligned box centred on the
-    body origin; any point with |x| < hx AND |y| < hy AND |z| < hz is the drone
-    itself (frame, arms, props, legs, payload) seen in the Mid-360's near field,
-    and is dropped. An all-zero half-extent disables the filter -- nothing lies
-    strictly inside a zero-width box. Meant to run in the BODY frame so it stays
-    locked to the airframe regardless of mount offset or attitude; the spherical
-    ``min_range_m`` cull is too blunt for an asymmetric airframe.
+    Runs in the BODY frame (after the mount transform) so it stays locked to the
+    airframe regardless of mount offset or attitude. Real obstacles are cleared
+    to obs_d_min (~1 m) laterally, so a sub-metre self column never clips one.
+    ``radius_m <= 0`` disables it (the caller checks).
     """
-    hx, hy, hz = half_extents_xyz
     inside = (
-        (np.abs(points_body[:, 0]) < hx)
-        & (np.abs(points_body[:, 1]) < hy)
-        & (np.abs(points_body[:, 2]) < hz)
+        (points_body[:, 0] ** 2 + points_body[:, 1] ** 2 < radius_m * radius_m)
+        & (points_body[:, 2] >= z_min_m)
+        & (points_body[:, 2] <= z_max_m)
     )
     return ~inside
 

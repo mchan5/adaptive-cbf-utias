@@ -33,5 +33,10 @@ run_args=(
 [ -d /mnt/wslg ] && run_args+=( -v /mnt/wslg:/mnt/wslg:rw -e WAYLAND_DISPLAY \
   -e XDG_RUNTIME_DIR=/mnt/wslg/runtime-dir )
 [ -e /dev/dri ] && run_args+=( --device /dev/dri )
+# Real-hardware serial links (Pixhawk over USB, a companion FMU bridge, etc.) --
+# usbipd-attached devices on WSL, already present natively on Linux.
+for dev in /dev/ttyACM* /dev/ttyUSB*; do
+  [ -e "$dev" ] && run_args+=( --device "$dev" )
+done
 
 exec docker run "${run_args[@]}" "$IMAGE" bash

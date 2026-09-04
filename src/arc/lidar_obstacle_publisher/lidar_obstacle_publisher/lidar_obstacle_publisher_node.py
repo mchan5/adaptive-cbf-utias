@@ -80,11 +80,15 @@ class LidarObstaclePublisherNode(Node):
         self.declare_parameter('sensor_offset_xyz', [0.0, 0.0, 0.0])
         self.declare_parameter('sensor_offset_rpy_deg', [0.0, 0.0, 0.0])
 
-        # --- spatial pre-filters (both default-off) --------------------------------
-        # Body-frame box half-extents around the airframe origin: points inside it
-        # are the drone itself (props/legs/payload) in the sensor near field.
-        # [0, 0, 0] disables. Read live, so `ros2 param set` retunes without a restart.
-        self.declare_parameter('self_filter_half_extents_xyz', [0.0, 0.0, 0.0])
+        # --- spatial pre-filters ------------------------------------------------
+        # Body-frame self-filter: drop points inside a vertical cylinder centred
+        # on the airframe origin -- radius in the body XY plane, z between the two
+        # bounds -- i.e. the drone's own arms/props/legs in the sensor near field.
+        # ON by default; radius <= 0 disables. Real obstacles are held ~obs_d_min
+        # (1 m) away laterally so a sub-metre column never clips one. Read live.
+        self.declare_parameter('self_filter_radius_m', 0.40)
+        self.declare_parameter('self_filter_z_min_m', -0.50)
+        self.declare_parameter('self_filter_z_max_m', 0.50)
         # World-frame arena region of interest. When roi_enabled, points with X or Y
         # outside [roi_xy_min, roi_xy_max] are dropped before clustering so the room
         # walls never become obstacles. The flight geofence must sit strictly inside.
@@ -143,7 +147,11 @@ class LidarObstaclePublisherNode(Node):
             self.get_parameter('grid_resolution_m').value)
         self._last_tick = None   # rclpy.time.Time of the previous cloud, for the decay dt
 
-        sf = self.get_parameter('self_filter_half_extents_xyz').value
+        r_self = self.get_parameter('self_filter_radius_m').value
+        self_str = (
+            f'self_filter r={r_self}m z=[{self.get_parameter("self_filter_z_min_m").value},'
+            f'{self.get_parameter("self_filter_z_max_m").value}]'
+            if r_self > 0.0 else 'self_filter OFF')
         roi_on = self.get_parameter('roi_enabled').value
         roi_str = (
             f' roi=[{self.get_parameter("roi_xy_min").value},'
@@ -154,7 +162,7 @@ class LidarObstaclePublisherNode(Node):
             f'once per input cloud. sensor_offset_xyz={offset_xyz} '
             f'sensor_offset_rpy_deg={offset_rpy} -- verify these against the real mount '
             f'before trusting obstacle positions. '
-            f'self_filter_half_extents_xyz={sf} roi_enabled={roi_on}{roi_str} '
+            f'{self_str} roi_enabled={roi_on}{roi_str} '
             f'occupancy grid {self._grid.shape} @ {self.get_parameter("grid_resolution_m").value} m '
             f'origin {self.get_parameter("grid_origin_xy").value}')
 
@@ -200,9 +208,12 @@ class LidarObstaclePublisherNode(Node):
 
         points_body = (self._R_offset @ points_sensor.T).T + self._t_offset
 
-        half_extents = self.get_parameter('self_filter_half_extents_xyz').value
-        if any(h > 0.0 for h in half_extents):
-            points_body = points_body[self_filter_mask(points_body, half_extents)]
+        r_self = self.get_parameter('self_filter_radius_m').value
+        if r_self > 0.0:
+            points_body = points_body[self_filter_mask(
+                points_body, r_self,
+                self.get_parameter('self_filter_z_min_m').value,
+                self.get_parameter('self_filter_z_max_m').value)]
             if points_body.shape[0] == 0:
                 self._publish([], stamp)
                 return
